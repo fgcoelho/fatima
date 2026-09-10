@@ -3,7 +3,7 @@ use crate::{FatimaError, Result};
 use super::crypto::random_bytes;
 use super::domain::assert_environment;
 use super::types::KEY_LENGTH;
-use super::vault::FatimaVault;
+use super::handle::FatimaVault;
 
 impl FatimaVault {
     pub fn create_environment(&mut self, environment: &str) -> Result<()> {

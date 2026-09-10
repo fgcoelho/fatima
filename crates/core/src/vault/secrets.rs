@@ -8,7 +8,7 @@ use super::domain::{assert_environment, to_environment_map};
 use super::store::{decrypt_environment_value, encrypt_environment_value, read_store, write_store};
 use super::types::{FatimaVaultSession, SecretRecord};
 use super::user_key::list_secrets_with_user_key;
-use super::vault::FatimaVault;
+use super::handle::FatimaVault;
 
 impl FatimaVault {
     pub fn get_secrets(&self, environment: Option<&str>) -> Result<Secrets> {

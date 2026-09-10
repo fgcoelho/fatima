@@ -3,7 +3,7 @@ use crate::{FatimaError, Result};
 use super::domain::dedupe;
 use super::types::GeneratedUserKey;
 use super::user_key::{assert_user_key_environments, create_user_key_record};
-use super::vault::FatimaVault;
+use super::handle::FatimaVault;
 
 impl FatimaVault {
     pub fn generate_user_key(

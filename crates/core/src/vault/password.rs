@@ -2,7 +2,7 @@ use crate::Result;
 
 use super::crypto::{derive_key, random_b64};
 use super::domain::assert_non_empty_password;
-use super::vault::FatimaVault;
+use super::handle::FatimaVault;
 
 impl FatimaVault {
     pub fn change_password(&mut self, password: &str) -> Result<()> {

@@ -170,7 +170,7 @@ pub struct UserSecretRecord {
 
 #[derive(Clone, Debug)]
 pub(crate) enum FatimaVaultSession {
-    Password(UnlockedVault),
+    Password(Box<UnlockedVault>),
     UserKey {
         raw_key: String,
         user_key_id: String,

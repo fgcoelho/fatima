@@ -54,7 +54,7 @@ impl FatimaVault {
         let unlocked = initialize_store(password, &options)?;
         Ok(Self {
             options,
-            session: Some(FatimaVaultSession::Password(unlocked)),
+            session: Some(FatimaVaultSession::Password(Box::new(unlocked))),
         })
     }
 
@@ -63,7 +63,7 @@ impl FatimaVault {
         let unlocked = unlock_store(password, Some(&options))?;
         Ok(Self {
             options,
-            session: Some(FatimaVaultSession::Password(unlocked)),
+            session: Some(FatimaVaultSession::Password(Box::new(unlocked))),
         })
     }
 
@@ -125,7 +125,7 @@ impl FatimaVault {
 
     pub(crate) fn require_unlocked_mut(&mut self) -> Result<&mut super::types::UnlockedVault> {
         match self.session.as_mut() {
-            Some(FatimaVaultSession::Password(unlocked)) => Ok(unlocked),
+            Some(FatimaVaultSession::Password(unlocked)) => Ok(unlocked.as_mut()),
             Some(FatimaVaultSession::UserKey { .. }) => Err(FatimaError::message(
                 "Fatima vault mutation requires password authentication.",
             )),
