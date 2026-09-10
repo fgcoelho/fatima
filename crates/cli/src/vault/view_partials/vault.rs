@@ -83,7 +83,6 @@ pub fn render_secret_table(
         "VALUE",
         theme::faint(),
         theme::faint(),
-        row_style,
     );
 
     if secrets.is_empty() {
@@ -134,7 +133,6 @@ pub fn render_secret_table(
             &value,
             key_style,
             value_style,
-            row_style,
         );
     }
 }
@@ -182,7 +180,6 @@ fn render_secret_table_cells(
     value: &str,
     key_style: ratatui::style::Style,
     value_style: ratatui::style::Style,
-    _row_style: ratatui::style::Style,
 ) {
     let key_width = SECRET_KEY_WIDTH.min(area.width.saturating_sub(SELECTOR_WIDTH + 12));
     let [selector_area, key_area, value_area] = Layout::default()
@@ -204,17 +201,27 @@ fn render_secret_table_cells(
         .render(value_area, buffer);
 }
 
+pub struct MatrixSelection {
+    pub row: usize,
+    pub column: usize,
+    pub revealed: bool,
+    pub dimmed: bool,
+}
+
 pub fn render_secret_matrix(
     area: Rect,
     buffer: &mut Buffer,
     environments: &[String],
     vault: &BTreeMap<String, Vec<SecretRecord>>,
     keys: &[String],
-    selected_row: usize,
-    selected_column: usize,
-    revealed: bool,
-    dimmed: bool,
+    selection: MatrixSelection,
 ) {
+    let MatrixSelection {
+        row: selected_row,
+        column: selected_column,
+        revealed,
+        dimmed,
+    } = selection;
     let _row_style = if dimmed {
         theme::dim_surface()
     } else {

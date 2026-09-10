@@ -5,7 +5,7 @@ use crate::vault::ui::atoms::panel::{fill, render_panel_header};
 use crate::vault::ui::atoms::toast::ToastTone;
 use crate::vault::view_models::vault::use_vault;
 use crate::vault::view_partials::vault::{
-    render_environment_tabs, render_secret_matrix, render_secret_table,
+    render_environment_tabs, render_secret_matrix, render_secret_table, MatrixSelection,
 };
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -88,10 +88,12 @@ pub fn render(area: Rect, buffer: &mut Buffer, state: &VaultAppState) {
             &vm.environment_list,
             &state.vault_map(),
             &state.matrix_keys(),
-            state.matrix_row,
-            state.matrix_column,
-            vm.revealed,
-            vm.overlay_open,
+            MatrixSelection {
+                row: state.matrix_row,
+                column: state.matrix_column,
+                revealed: vm.revealed,
+                dimmed: vm.overlay_open,
+            },
         ),
     }
 
