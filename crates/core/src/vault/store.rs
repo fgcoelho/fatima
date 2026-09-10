@@ -319,7 +319,7 @@ fn decrypt_data(
             values,
         });
     }
-    let user_secrets = decrypt_user_secrets(&file.user_secrets, &user_environment_secrets)?;
+    let user_secrets = decrypt_user_secrets(&file.user_secrets, user_environment_secrets)?;
     Ok(StoredVaultData {
         default_environment: file.default_environment.clone(),
         environments: environment_names(file),

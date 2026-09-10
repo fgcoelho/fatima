@@ -25,7 +25,7 @@ pub fn evaluate_environment_expression(
                 }
             }
         } else if !value.is_empty() {
-            return Ok(interpolate_string(value, env)?);
+            return interpolate_string(value, env);
         }
     }
 
