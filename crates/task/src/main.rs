@@ -251,14 +251,14 @@ fn usage() {
 
 fn parse_version_arg(args: Vec<String>) -> Result<String, String> {
     let mut iter = args.into_iter();
-    while let Some(arg) = iter.next() {
-        match arg.as_str() {
-            "--version" | "-v" => return iter.next().ok_or("--version requires a value".into()),
-            value if !value.starts_with('-') => return Ok(value.to_string()),
-            _ => return Err(format!("unknown argument `{arg}`")),
-        }
+    match iter.next() {
+        None => Err("missing version".into()),
+        Some(arg) => match arg.as_str() {
+            "--version" | "-v" => iter.next().ok_or("--version requires a value".into()),
+            value if !value.starts_with('-') => Ok(value.to_string()),
+            _ => Err(format!("unknown argument `{arg}`")),
+        },
     }
-    Err("missing version".into())
 }
 
 fn build_binaries(args: Vec<String>) -> Result<(), String> {
