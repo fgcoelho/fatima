@@ -1,13 +1,24 @@
+use std::fmt;
+
 use crate::{FatimaError, Result};
 
 use super::store::{get_settings, has_store, initialize_store, read_store, unlock_store};
 use super::types::{FatimaVaultSession, ProjectSecretManagerSettings, VaultOptions};
 use super::user_key::authenticate_user_key;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FatimaVault {
     pub(crate) options: VaultOptions,
     pub(crate) session: Option<FatimaVaultSession>,
+}
+
+impl fmt::Debug for FatimaVault {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("FatimaVault")
+            .field("options", &self.options)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Default for FatimaVault {

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -219,7 +220,7 @@ pub struct UserSecretRecord {
     pub values: BTreeMap<String, String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) enum FatimaVaultSession {
     Password(Box<UnlockedVault>),
     UserKey {
@@ -230,7 +231,7 @@ pub(crate) enum FatimaVaultSession {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct UnlockedVault {
     pub project: ProjectSecretManagerSettings,
     pub file: StoredVaultFile,
@@ -246,6 +247,27 @@ pub(crate) struct UnlockedVault {
     pub master_encryption_key: [u8; 32],
     pub kdf_salt: Vec<u8>,
     pub kdf_params: KdfParams,
+}
+
+impl fmt::Debug for FatimaVaultSession {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Password(vault) => formatter.debug_tuple("Password").field(vault).finish(),
+            Self::UserKey { user_key_id, .. } => formatter
+                .debug_struct("UserKey")
+                .field("user_key_id", user_key_id)
+                .finish_non_exhaustive(),
+        }
+    }
+}
+
+impl fmt::Debug for UnlockedVault {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("UnlockedVault")
+            .field("project_id", &self.project_id)
+            .finish_non_exhaustive()
+    }
 }
 
 pub(crate) struct ProjectStore {

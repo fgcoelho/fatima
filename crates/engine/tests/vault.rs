@@ -566,3 +566,19 @@ fn v1_user_key_writes_a_user_secret_before_the_upgrade() {
     assert_eq!(secrets["LOG"], "debug");
     assert_eq!(secrets["DEBUG"], "1");
 }
+
+#[test]
+fn debug_output_hides_key_material() {
+    let temp = tempfile::tempdir().unwrap();
+    let (options, user_key) = fixture_options(&temp);
+
+    let vault = FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
+    let keyed = FatimaVault::authenticate_with_user_key(&user_key, Some(options)).unwrap();
+
+    for output in [format!("{vault:?}"), format!("{keyed:?}")] {
+        assert!(output.ends_with(".. }"), "{output}");
+        assert!(!output.contains(&user_key), "{output}");
+        assert!(!output.contains("account_key"), "{output}");
+        assert!(!output.contains("postgres://"), "{output}");
+    }
+}
