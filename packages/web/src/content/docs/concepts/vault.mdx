@@ -8,7 +8,7 @@ The Fatima Vault is a local encrypted store for project secrets. By default, it 
 
 ## Store
 
-The store contains encrypted secret keys, encrypted secret values, environment metadata, and user-key records. The file is JSON, but the sensitive fields are encrypted blobs.
+The store contains encrypted secret keys, encrypted secret values, environment metadata, and user-key records. The file is JSON, but the sensitive fields are encrypted blobs. It carries a format version, currently 2. A version 1 file (scrypt and AES-256-GCM) opens with its password and is rewritten as version 2 on the next save made with the password. User keys issued against a version 1 file keep working after the upgrade, and a user key writing its own user secrets leaves a version 1 file at version 1.
 
 ## Environments
 

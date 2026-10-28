@@ -83,7 +83,8 @@ Every changed line must be directly traceable to the user's request.
 ## Compatibility lives at the edges, nowhere else
 
 Fatima publishes four surfaces that other people depend on: the `fatima` CLI and its flags,
-`fatima-engine` and `fatima-cli` on crates.io, `@fatima.dev/js` on npm, and the on-disk formats —
+`fatima-engine` and `fatima-cli` on crates.io (`fatima-core` stays frozen at its last release),
+`@fatima.dev/js` on npm, and the on-disk formats —
 `fatima.json`, the generated SDKs, and the vault the CLI reads. Those are contracts. A vault
 written by an older release must still open, and a change to `static/schema.json` is a change to
 everyone's editor completions.
