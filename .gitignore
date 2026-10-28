@@ -3,7 +3,7 @@ opencode.json
 .opencode
 .claude/*
 !.claude/settings.json
-.gitnexus/
+.codegraph/
 .superpowers/
 /superpowers
 .worktrees/

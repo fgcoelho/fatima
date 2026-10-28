@@ -28,6 +28,7 @@
 		"**/*.toml",
 		".agents/skills",
 		".astro",
+		".codegraph",
 		".claude",
 		".release",
 		".source",

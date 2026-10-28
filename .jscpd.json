@@ -10,6 +10,7 @@
 		"**/dist/**",
 		"**/target/**",
 		"**/.release/**",
+		"**/.codegraph/**",
 		"**/*.gen.ts",
 		"**/.agents/skills/**",
 		"**/packages/js/src/wasm/**",

@@ -10,7 +10,7 @@
 | `bun run checktypes`               | `tsc --noEmit` and `astro check` across the packages                                          |
 | `bun run lint` / `format`          | oxlint + `oxfmt --check`, without / with writing                                              |
 | `bun run analyze`                  | `knip` (dead code, deps) then `jscpd` (duplication). `knip:all` adds the unused-export report |
-| `bun run gitnexus`                 | re-index the code graph, then dedupe and format the instruction files                         |
+| `bun run codegraph`                | build `.codegraph/` when missing, off CI. `bun install` runs it                               |
 | `cargo run -p fatima-cli -- <cmd>` | run the CLI from source — `generate run secrets validate vault`                               |
 | `bun run bump` / `version`         | move the workspace version / set it explicitly                                                |
 | `bun run verify:release`           | check every manifest agrees on the version before a tag                                       |

@@ -7,11 +7,6 @@
 			"type": "http",
 			"url": "https://mcp.context7.com/mcp"
 		},
-		"gitnexus": {
-			"args": ["-y", "gitnexus@1.6.9", "mcp"],
-			"command": "npx",
-			"type": "stdio"
-		},
 		"grepapp": {
 			"type": "http",
 			"url": "https://mcp.grep.app"
@@ -22,6 +17,16 @@
 			"headers": {
 				"Authorization": "Bearer ${GITHUB_API_KEY}"
 			}
+		},
+		"codegraph": {
+			"alwaysLoad": true,
+			"args": ["-y", "@colbymchenry/codegraph@1.6.2", "serve", "--mcp"],
+			"command": "npx",
+			"env": {
+				"CODEGRAPH_MCP_TOOLS": "explore,impact",
+				"CODEGRAPH_TELEMETRY": "0"
+			},
+			"type": "stdio"
 		}
 	}
 }
