@@ -21,7 +21,7 @@ The Vault gives you a middle ground:
 
 ## How encryption works at a high level
 
-The Vault password goes through Argon2id (64 MiB, 3 iterations, 4 lanes, with the parameters stored in the file) and HKDF-SHA256 to an encryption key. That key wraps a random account key, and the account key wraps the private half of an X25519 key pair. Secret names and values are encrypted with XChaCha20-Poly1305 under their environment's key, and the associated data binds each ciphertext to its project, environment, secret and field, so a ciphertext moved elsewhere fails to decrypt.
+The Vault password goes through Argon2id (64 MiB, 3 iterations, 4 lanes, with the parameters stored in the file) and HKDF-SHA256 to an encryption key. That key wraps a random account key, and the account key wraps the private half of an X25519 key pair. Secret names and values are encrypted with XChaCha20-Poly1305 under their environment's key, and the associated data binds each ciphertext to its project, environment, secret and field, so a ciphertext moved elsewhere fails to decrypt. Vaults created before format 2 carry a caveat for their user keys, described under Store in the vault concepts page.
 
 Each environment has its own key, sealed to the account public key as a grant. User keys receive wrapped access only to the environments selected when the key is created. That is why a key for `development` cannot read `production`.
 

@@ -12,9 +12,9 @@ supplies one backed by JavaScript callbacks, and `@fatima.dev/js` provides those
   host. It is not a direct call smuggled into a provider.
 - Providers live in `crates/engine/src/providers/` and are reached through the registry, never
   constructed by name at a call site.
-- The vault is encrypted at rest. `crates/engine/src/vault/crypto.rs` owns the version 2 primitives
-  and `crates/engine/src/vault/legacy/` is the read-only version 1 code. Nothing else reads or
-  writes key material. A secret never lands in a log, an error message, or a snapshot
+- The vault is encrypted at rest. `crates/engine/src/vault/` is the only place that reads or
+  writes key material: `crypto.rs` holds the version 2 primitives and `legacy/` is the read-only
+  version 1 code. A secret never lands in a log, an error message, or a snapshot
   fixture.
 - `crates/cli` is the only crate that may draw a terminal. `ratatui` and `crossterm` stay behind
   `crates/cli/src/vault/` and `crates/cli/src/ui/`.
