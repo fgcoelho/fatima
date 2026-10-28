@@ -622,6 +622,27 @@ fn v1_user_key_hash_is_not_its_wrapping_key_after_upgrade() {
 }
 
 #[test]
+fn v1_user_key_survives_a_second_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let (options, user_key) = fixture_options(&temp);
+
+    let mut vault =
+        FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
+    vault.save().unwrap();
+    let first = read_vault_json(&temp)["userKeys"][0]["secretHash"].clone();
+
+    let mut vault =
+        FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
+    vault.save().unwrap();
+    assert_eq!(read_vault_json(&temp)["userKeys"][0]["secretHash"], first);
+
+    let keyed = FatimaVault::authenticate_with_user_key(&user_key, Some(options)).unwrap();
+    let secrets = keyed.get_secrets(Some("development")).unwrap();
+    assert_eq!(secrets["DATABASE_URL"], "postgres://dev");
+    assert_eq!(secrets["DEBUG"], "1");
+}
+
+#[test]
 fn v1_user_key_writes_after_the_upgrade() {
     let temp = tempfile::tempdir().unwrap();
     let (options, user_key) = fixture_options(&temp);
