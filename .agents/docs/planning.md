@@ -17,6 +17,18 @@ It opens with a dash list — `- Date:` always, matching the directory, then `- 
 
 `plan.md` is what builds it, naming its spec as `spec.md` in the header.
 
+## `.agents/docs/specs/` and `.agents/docs/features/` are not the same directory
+
+`.agents/docs/specs/` is spec-driven development: what is about to be built and the plan that
+builds it, one dated directory per round of work.
+
+`.agents/docs/features/` explains a feature that already exists. Flat files, the way
+`.agents/docs/adr/` is flat: a feature has nothing to group, so it gets no directory of its own.
+
+`.agents/docs/notes/` is neither: flat files recording something to remember for later that no spec
+owns yet, such as a production cleanup waiting for a maintenance window. An entry is deleted once
+its work is done.
+
 ## When a feature comes back
 
 A second round of work does not get a second file beside the first. The plan becomes a
@@ -43,6 +55,14 @@ old name before you finish.
 ## Where a decision lives
 
 A decision about work we designed lives in that work's `spec.md`, so the decision and its rationale
-cannot drift apart. There is no separate decision log: the spec that produced the choice is the
-record of it, and a choice forced on us from outside — by a dependency, a target, a registry — is
-stated in the spec of the work that hit it.
+cannot drift apart.
+
+`.agents/docs/adr/` holds the exception: a choice forced on us from outside, by a runtime or a
+dependency, that no spec of ours produced. Each one is an ADR in the MADR 4.0.0 format: copy
+`.agents/docs/templates/adr.md`, keep its section order, and name the file
+`NNNN-title-with-dashes.md`, numbered after the highest one already in the directory.
+
+An ADR that stops holding is neither deleted nor edited into something else. It gets
+`superseded by`, and the number it already has keeps resolving every link that points at it.
+
+`.agents/docs/adr/0000-use-markdown-any-decision-records.md` records why the format is this one.
