@@ -31,7 +31,7 @@ impl FatimaVault {
             &unlocked.master_password_key,
         )?;
         for (environment, wrapped) in &generated.record.wrapped_user_environment_secrets {
-            let secret = super::crypto::decrypt_bytes(
+            let secret = super::legacy::crypto::decrypt_bytes(
                 &wrapped.by_master_password,
                 &unlocked.master_password_key,
             )?;

@@ -7,7 +7,9 @@ use scrypt::{scrypt, Params};
 
 use crate::{FatimaError, Result};
 
-use super::types::{EncryptedBlob, KEY_LENGTH};
+use crate::vault::types::KEY_LENGTH;
+
+use super::EncryptedBlob;
 
 pub(crate) fn encrypt_bytes(value: &[u8], key: &[u8]) -> Result<EncryptedBlob> {
     let cipher = cipher(key)?;

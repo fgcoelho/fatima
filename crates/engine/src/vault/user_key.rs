@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 use crate::env::Secrets;
 use crate::{FatimaError, Result};
 
-use super::crypto::{decrypt_bytes, derive_key, encode_b64, encrypt_bytes, random_b64};
+use super::legacy::crypto::{decrypt_bytes, derive_key, encode_b64, encrypt_bytes, random_b64};
 use super::domain::{assert_environment, to_environment_map};
 use super::store::{
     assert_supported_store, decrypt_environment_value, environment_names, read_store,
 };
+use super::legacy::{UserKeyRecord, WrappedUserEnvironmentSecret};
 use super::types::{
-    GeneratedUserKey, UserKeyRecord, VaultOptions, WrappedUserEnvironmentSecret, KEY_LENGTH,
-    USER_KEY_ID_LENGTH, USER_KEY_PREFIX,
+    GeneratedUserKey, VaultOptions, KEY_LENGTH, USER_KEY_ID_LENGTH, USER_KEY_PREFIX,
 };
 
 pub(crate) fn list_secrets_with_user_key(

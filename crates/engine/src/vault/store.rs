@@ -7,13 +7,16 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{FatimaError, Result};
 
-use super::crypto::{decrypt_bytes, derive_key, encrypt_bytes, random_b64, random_bytes};
+use super::legacy::crypto::{decrypt_bytes, derive_key, encrypt_bytes, random_b64, random_bytes};
 use super::domain::assert_non_empty_password;
+use super::legacy::{
+    EnvironmentRecord, StoredSecretRecord, StoredUserSecretRecord, StoredVaultFile,
+    VaultEncryption, VaultKdf,
+};
 use super::types::{
-    EnvironmentRecord, ProjectSecretManagerSettings, ProjectStore, ResolvedSettings, SecretRecord,
-    StoreFiles, StoredProjectConfig, StoredSecretRecord, StoredUserSecretRecord, StoredVaultData,
-    StoredVaultFile, UserSecretRecord, VaultEncryption, VaultKdf, VaultOptions,
-    DEFAULT_ENVIRONMENTS, DEFAULT_STORE_PATH, KEY_LENGTH,
+    ProjectSecretManagerSettings, ProjectStore, ResolvedSettings, SecretRecord, StoreFiles,
+    StoredProjectConfig, StoredVaultData, UserSecretRecord, VaultOptions, DEFAULT_ENVIRONMENTS,
+    DEFAULT_STORE_PATH, KEY_LENGTH,
 };
 
 pub(crate) fn has_store(options: Option<&VaultOptions>) -> bool {
@@ -239,7 +242,7 @@ pub(crate) fn environment_names(file: &StoredVaultFile) -> Vec<String> {
 }
 
 pub(crate) fn decrypt_environment_value(
-    value: &super::types::EncryptedBlob,
+    value: &super::legacy::EncryptedBlob,
     environment_secret: &[u8],
 ) -> Result<String> {
     let bytes = decrypt_bytes(value, environment_secret)?;
@@ -249,7 +252,7 @@ pub(crate) fn decrypt_environment_value(
 pub(crate) fn encrypt_environment_value(
     value: &str,
     environment_secret: &[u8],
-) -> Result<super::types::EncryptedBlob> {
+) -> Result<super::legacy::EncryptedBlob> {
     encrypt_bytes(value.as_bytes(), environment_secret)
 }
 
@@ -359,7 +362,7 @@ fn encrypt_secrets(
 }
 
 fn unwrap_user_environment_secrets(
-    user_keys: &[super::types::UserKeyRecord],
+    user_keys: &[super::legacy::UserKeyRecord],
     master_password_key: &[u8],
 ) -> Result<BTreeMap<String, BTreeMap<String, Vec<u8>>>> {
     if master_password_key.is_empty() {

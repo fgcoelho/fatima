@@ -1,6 +1,6 @@
 use crate::{FatimaError, Result};
 
-use super::crypto::random_bytes;
+use super::legacy::crypto::random_bytes;
 use super::domain::assert_environment;
 use super::types::KEY_LENGTH;
 use super::handle::FatimaVault;

@@ -212,7 +212,7 @@ impl FatimaVault {
             store
                 .file
                 .user_secrets
-                .push(super::types::StoredUserSecretRecord {
+                .push(super::legacy::StoredUserSecretRecord {
                     id: uuid::Uuid::new_v4().to_string(),
                     owner_user_key_id: user_key_id,
                     keys,
