@@ -146,7 +146,7 @@ pub(crate) fn create_user_key_record(
             environment.clone(),
             encrypt_bytes(environment_secret, &user_key)?,
         );
-        let user_environment_secret = super::crypto::random_bytes(KEY_LENGTH);
+        let user_environment_secret = super::legacy::crypto::random_bytes(KEY_LENGTH);
         wrapped_user_environment_secrets.insert(
             environment.clone(),
             WrappedUserEnvironmentSecret {
