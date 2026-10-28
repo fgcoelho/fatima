@@ -1,6 +1,6 @@
 use std::io::{self, Read};
 
-use fatima_core::{handle_api_request, ApiRequest};
+use fatima_engine::{handle_api_request, ApiRequest};
 use miette::{IntoDiagnostic, Result};
 
 pub fn run(request: Option<String>) -> Result<()> {

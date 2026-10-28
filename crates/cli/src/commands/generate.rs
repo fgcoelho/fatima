@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use fatima_core::{generate, FatimaConfig};
+use fatima_engine::{generate, FatimaConfig};
 use miette::Result;
 
 use crate::ui::atoms;

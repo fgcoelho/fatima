@@ -94,7 +94,7 @@ jobs:
         run: cargo test --workspace
 
       - name: Package Rust crates
-        run: cargo package -p fatima-core
+        run: cargo package -p fatima-engine
 
   publish-crates:
     name: Publish crates.io
@@ -107,14 +107,14 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Publish fatima-core
+      - name: Publish fatima-engine
         shell: bash
         run: |
           VERSION="${{ needs.prepare.outputs.version }}"
-          if cargo search fatima-core --limit 1 --color never | grep -q "^fatima-core = \"$VERSION\""; then
-            echo "fatima-core $VERSION already published, skipping"
+          if cargo search fatima-engine --limit 1 --color never | grep -q "^fatima-engine = \"$VERSION\""; then
+            echo "fatima-engine $VERSION already published, skipping"
           else
-            cargo publish -p fatima-core
+            cargo publish -p fatima-engine
           fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

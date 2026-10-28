@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEventKind};
-use fatima_core::vault::VaultOptions;
+use fatima_engine::vault::VaultOptions;
 use miette::{miette, IntoDiagnostic, Result};
 use ratatui::Frame;
 
@@ -26,7 +26,7 @@ pub fn run() -> Result<()> {
         Mode::Onboarding
     };
 
-    if let Some(password) = fatima_core::FatimaVault::resolve_default_password(None) {
+    if let Some(password) = fatima_engine::FatimaVault::resolve_default_password(None) {
         match runtime.unlock(&password) {
             Ok((vault, snapshot)) => {
                 state.project = snapshot.project.clone();

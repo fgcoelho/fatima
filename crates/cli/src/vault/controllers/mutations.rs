@@ -26,7 +26,7 @@ pub fn submit_modal(state: &mut VaultAppState, runtime: &VaultRuntime) -> Result
     }
 }
 
-fn refresh_snapshot(state: &mut VaultAppState, snapshot: fatima_core::vault::FatimaVaultSnapshot) {
+fn refresh_snapshot(state: &mut VaultAppState, snapshot: fatima_engine::vault::FatimaVaultSnapshot) {
     state.project = snapshot.project.clone();
     state.session = Some(snapshot);
     clamp_selection(state);
@@ -34,7 +34,7 @@ fn refresh_snapshot(state: &mut VaultAppState, snapshot: fatima_core::vault::Fat
 
 fn with_vault<T>(
     state: &mut VaultAppState,
-    f: impl FnOnce(&mut fatima_core::vault::FatimaVault, &mut VaultAppState) -> fatima_core::Result<T>,
+    f: impl FnOnce(&mut fatima_engine::vault::FatimaVault, &mut VaultAppState) -> fatima_engine::Result<T>,
 ) -> Result<Option<T>> {
     let Some(mut vault) = state.vault.take() else {
         state.error = Some("Vault is not unlocked.".to_string());
@@ -143,10 +143,10 @@ fn output_env(state: &mut VaultAppState, runtime: &VaultRuntime) -> Result<()> {
         .copied()
         .unwrap_or(OutputFormat::Dotenv);
     let secret_format = match format {
-        OutputFormat::Dotenv => fatima_core::SecretFormat::Dotenv,
-        OutputFormat::Json => fatima_core::SecretFormat::Json,
-        OutputFormat::Yml => fatima_core::SecretFormat::Yml,
-        OutputFormat::BashExport => fatima_core::SecretFormat::BashExport,
+        OutputFormat::Dotenv => fatima_engine::SecretFormat::Dotenv,
+        OutputFormat::Json => fatima_engine::SecretFormat::Json,
+        OutputFormat::Yml => fatima_engine::SecretFormat::Yml,
+        OutputFormat::BashExport => fatima_engine::SecretFormat::BashExport,
     };
     let Some(vault) = state.vault.as_ref() else {
         state.error = Some("Vault is not unlocked.".to_string());

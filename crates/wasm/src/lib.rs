@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use fatima_core::{
+use fatima_engine::{
     handle_api_request_with_host, ApiRequest, CommandOutput, CommandRequest, FatimaError,
     FatimaHost, HttpRequest, Result, Secrets,
 };
@@ -14,7 +14,7 @@ use wasm_bindgen_futures::JsFuture;
 pub async fn handle_api_request_json(input: String, host: JsValue) -> String {
     let response = match serde_json::from_str::<ApiRequest>(&input) {
         Ok(request) => handle_api_request_with_host(request, &JsHost::new(host)).await,
-        Err(error) => fatima_core::ApiResponse::error(error),
+        Err(error) => fatima_engine::ApiResponse::error(error),
     };
     serde_json::to_string(&response).unwrap_or_else(|error| {
         format!(r#"{{"ok":false,"error":"failed to serialize response: {error}"}}"#)

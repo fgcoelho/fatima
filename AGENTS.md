@@ -2,7 +2,7 @@
 
 Fatima is safe secrets and environment management, and it is growing a hosted SaaS beside the CLI.
 A Cargo workspace in `crates/` holds it: the `fatima` CLI with its terminal vault UI, the
-`fatima-core` library every surface is built on, a `fatima-wasm` build, and the `task` crate that
+`fatima-engine` library every surface is built on, a `fatima-wasm` build, and the `task` crate that
 drives releases. `packages/js` wraps the WASM build as `@fatima.dev/js`, and `packages/web` is the
 Astro documentation site. bun, turbo, and Oxc for lint and format.
 

@@ -1,5 +1,5 @@
-use fatima_core::vault::{FatimaVault, VaultOptions};
-use fatima_core::{Fatima, ProviderConfig};
+use fatima_engine::vault::{FatimaVault, VaultOptions};
+use fatima_engine::{Fatima, ProviderConfig};
 use serde_json::json;
 
 #[test]

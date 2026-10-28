@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fatima_core::{format_secrets, SecretFormat};
+use fatima_engine::{format_secrets, SecretFormat};
 
 fn secrets() -> BTreeMap<String, String> {
     BTreeMap::from([

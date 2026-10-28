@@ -15,7 +15,7 @@ whole feature. Nothing below is skipped because a change looked too small to bre
 
 `packages/js/src/wasm/`, everything under `.release/`, `Cargo.lock`, `bun.lock`, and
 `static/schema.json`. Regenerate it instead — `static/schema.json` comes from the config model in
-`crates/core`, so a schema change starts there.
+`crates/engine`, so a schema change starts there.
 
 ## What the rules are, and what they are not
 

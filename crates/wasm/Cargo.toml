@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 async-trait.workspace = true
-fatima-core = { workspace = true, features = ["wasm"] }
+fatima-engine = { workspace = true, features = ["wasm"] }
 js-sys.workspace = true
 serde_json.workspace = true
 serde-wasm-bindgen.workspace = true

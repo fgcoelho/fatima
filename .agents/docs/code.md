@@ -9,7 +9,7 @@ How code is written here, in Rust and in TypeScript alike.
 The test is written first and must fail for the expected reason before the production
 implementation is changed. A test written after the code is a test that was shaped by it.
 
-Crate behaviour is covered from `crates/core/tests/`, against the public API rather than a private
+Crate behaviour is covered from `crates/engine/tests/`, against the public API rather than a private
 function reached through `pub(crate)`. A unit test lives beside its module in a `#[cfg(test)]`
 block only when the thing under test genuinely has no reachable public surface.
 
@@ -83,7 +83,7 @@ Every changed line must be directly traceable to the user's request.
 ## Compatibility lives at the edges, nowhere else
 
 Fatima publishes four surfaces that other people depend on: the `fatima` CLI and its flags,
-`fatima-core` and `fatima-cli` on crates.io, `@fatima.dev/js` on npm, and the on-disk formats —
+`fatima-engine` and `fatima-cli` on crates.io, `@fatima.dev/js` on npm, and the on-disk formats —
 `fatima.json`, the generated SDKs, and the vault the CLI reads. Those are contracts. A vault
 written by an older release must still open, and a change to `static/schema.json` is a change to
 everyone's editor completions.
@@ -106,7 +106,7 @@ Rust:
 
 - **No `unwrap()`, no `expect()`, no `panic!` in library or command code.** Return `Result` and let
   the boundary render it. A test may `unwrap()` freely; nothing that runs for a user may.
-- Errors are `FatimaError` variants from `crates/core/src/error.rs`, not stringly-typed messages —
+- Errors are `FatimaError` variants from `crates/engine/src/error.rs`, not stringly-typed messages —
   see `.agents/docs/errors.md`.
 - **No `unsafe`.** If you believe you need it, stop and explain why before writing it.
 - Prefer borrowing to cloning. Reach for `clone()` when the alternative is a lifetime that

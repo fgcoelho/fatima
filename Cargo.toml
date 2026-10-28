@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/cli", "crates/core", "crates/wasm", "crates/task"]
+members = ["crates/cli", "crates/engine", "crates/wasm", "crates/task"]
 default-members = ["crates/cli"]
 resolver = "2"
 
@@ -11,7 +11,7 @@ repository = "https://github.com/Fgc17/fatima"
 description = "Safe secrets and environment management for JavaScript and Rust projects"
 
 [workspace.dependencies]
-fatima-core = { path = "crates/core", version = "0.0.1", default-features = false }
+fatima-engine = { path = "crates/engine", version = "0.0.1", default-features = false }
 async-trait = "0.1"
 clap = { version = "4.6.1", features = ["derive", "env", "wrap_help"] }
 futures = "0.3"

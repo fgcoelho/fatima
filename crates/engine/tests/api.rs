@@ -1,4 +1,4 @@
-use fatima_core::{handle_api_request, ApiRequest};
+use fatima_engine::{handle_api_request, ApiRequest};
 use serde_json::json;
 
 #[test]

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fatima_core::config::{evaluate_environment_expression, interpolate_value};
+use fatima_engine::config::{evaluate_environment_expression, interpolate_value};
 
 #[test]
 fn evaluates_env_expression_with_fallback() {

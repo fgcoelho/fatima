@@ -27,7 +27,7 @@
 		"version": "cargo run -p task -- set-version",
 		"verify:release": "cargo run -p task -- verify-release",
 		"publish:npm": "turbo run build:prebuilt --filter=@fatima.dev/js && npm publish packages/js --access public --provenance",
-		"publish:crates": "cargo publish -p fatima-core && cargo publish -p fatima-cli"
+		"publish:crates": "cargo publish -p fatima-engine && cargo publish -p fatima-cli"
 	},
 	"devDependencies": {
 		"jscpd": "^5.0.16",

@@ -15,7 +15,7 @@ path = "src/main.rs"
 base64.workspace = true
 clap.workspace = true
 crossterm.workspace = true
-fatima-core = { workspace = true, features = ["native"] }
+fatima-engine = { workspace = true, features = ["native"] }
 indicatif.workspace = true
 inquire.workspace = true
 miette.workspace = true

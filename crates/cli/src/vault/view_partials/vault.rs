@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fatima_core::vault::SecretRecord;
+use fatima_engine::vault::SecretRecord;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::text::{Line, Span};

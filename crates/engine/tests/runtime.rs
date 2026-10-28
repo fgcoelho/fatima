@@ -1,6 +1,6 @@
 use std::fs;
 
-use fatima_core::{Fatima, FatimaConfig};
+use fatima_engine::{Fatima, FatimaConfig};
 
 #[test]
 fn loads_local_provider_from_config_folder_and_tracks_loaded_env() {

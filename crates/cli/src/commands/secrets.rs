@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use fatima_core::{format_secrets, Fatima, FatimaConfig, SecretFormat};
+use fatima_engine::{format_secrets, Fatima, FatimaConfig, SecretFormat};
 use miette::Result;
 
 use crate::ui::atoms;

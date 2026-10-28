@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::fs;
 
-use fatima_core::providers::{load_provider, parse_env};
-use fatima_core::{NativeHost, ProviderConfig};
+use fatima_engine::providers::{load_provider, parse_env};
+use fatima_engine::{NativeHost, ProviderConfig};
 use serde_json::json;
 
 #[test]

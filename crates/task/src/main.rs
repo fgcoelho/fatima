@@ -18,8 +18,8 @@ const COMMIT_TAG_FILES: &[&str] = &[
 ];
 const RELEASE_PACKAGES: &[ReleasePackage] = &[
     ReleasePackage {
-        name: "fatima-core",
-        path: "crates/core",
+        name: "fatima-engine",
+        path: "crates/engine",
     },
     ReleasePackage {
         name: "fatima-wasm",
@@ -601,8 +601,8 @@ fn set_version(version: &str) -> Result<(), String> {
             .map(|line| {
                 if line.trim_start().starts_with("version = ") {
                     format!("version = \"{version}\"")
-                } else if line.trim_start().starts_with("fatima-core = ") {
-                    format!("fatima-core = {{ path = \"crates/core\", version = \"{version}\", default-features = false }}")
+                } else if line.trim_start().starts_with("fatima-engine = ") {
+                    format!("fatima-engine = {{ path = \"crates/engine\", version = \"{version}\", default-features = false }}")
                 } else {
                     line.to_string()
                 }
@@ -931,9 +931,9 @@ fn verify_release(version: &str) -> Result<(), String> {
     ensure_contains(
         &cargo,
         &format!(
-            "fatima-core = {{ path = \"crates/core\", version = \"{version}\", default-features = false }}"
+            "fatima-engine = {{ path = \"crates/engine\", version = \"{version}\", default-features = false }}"
         ),
-        "fatima-core workspace dependency version",
+        "fatima-engine workspace dependency version",
     )?;
 
     for file in VERSION_FILES {
@@ -948,7 +948,7 @@ fn verify_release(version: &str) -> Result<(), String> {
     }
 
     for file in [
-        "crates/core/Cargo.toml",
+        "crates/engine/Cargo.toml",
         "crates/cli/Cargo.toml",
         "crates/wasm/Cargo.toml",
     ] {
@@ -967,15 +967,15 @@ fn verify_release(version: &str) -> Result<(), String> {
     let wasm = fs::read_to_string("crates/wasm/Cargo.toml").map_err(|error| error.to_string())?;
     ensure_contains(
         &wasm,
-        "fatima-core = { workspace = true, features = [\"wasm\"] }",
-        "crates/wasm fatima-core dependency",
+        "fatima-engine = { workspace = true, features = [\"wasm\"] }",
+        "crates/wasm fatima-engine dependency",
     )?;
 
     let cli = fs::read_to_string("crates/cli/Cargo.toml").map_err(|error| error.to_string())?;
     ensure_contains(
         &cli,
-        "fatima-core = { workspace = true, features = [\"native\"] }",
-        "crates/cli fatima-core dependency",
+        "fatima-engine = { workspace = true, features = [\"native\"] }",
+        "crates/cli fatima-engine dependency",
     )?;
 
     let task = fs::read_to_string("crates/task/Cargo.toml").map_err(|error| error.to_string())?;
@@ -1004,7 +1004,7 @@ fn verify_release(version: &str) -> Result<(), String> {
     ensure_not_contains(&root_package, "\n\t\"version\":", "root package version")?;
 
     let lock = fs::read_to_string("Cargo.lock").map_err(|error| error.to_string())?;
-    for package in ["fatima-core", "fatima-cli", "fatima-wasm"] {
+    for package in ["fatima-engine", "fatima-cli", "fatima-wasm"] {
         ensure_lock_package_version(&lock, package, version)?;
     }
     ensure_lock_package_version(&lock, "task", "0.0.0")?;

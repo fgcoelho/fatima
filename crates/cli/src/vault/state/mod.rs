@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fatima_core::vault::{
+use fatima_engine::vault::{
     FatimaVault, FatimaVaultSnapshot, ProjectSecretManagerSettings, SecretRecord,
 };
 

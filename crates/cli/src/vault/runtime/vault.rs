@@ -1,10 +1,10 @@
 use std::fs;
 
-use fatima_core::env::SecretFormat;
-use fatima_core::vault::{
+use fatima_engine::env::SecretFormat;
+use fatima_engine::vault::{
     FatimaVault, FatimaVaultSnapshot, GeneratedUserKey, ProjectSecretManagerSettings, VaultOptions,
 };
-use fatima_core::{FatimaError, Result};
+use fatima_engine::{FatimaError, Result};
 
 pub struct VaultRuntime {
     options: VaultOptions,

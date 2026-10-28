@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use fatima_core::{Fatima, FatimaConfig};
+use fatima_engine::{Fatima, FatimaConfig};
 use miette::Result;
 
 use crate::ui::atoms;

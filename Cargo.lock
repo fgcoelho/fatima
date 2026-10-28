@@ -526,7 +526,7 @@ dependencies = [
  "base64",
  "clap",
  "crossterm 0.29.0",
- "fatima-core",
+ "fatima-engine",
  "indicatif",
  "inquire",
  "miette",
@@ -536,7 +536,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "fatima-core"
+name = "fatima-engine"
 version = "0.0.1"
 dependencies = [
  "aes-gcm",
@@ -561,7 +561,7 @@ name = "fatima-wasm"
 version = "0.0.1"
 dependencies = [
  "async-trait",
- "fatima-core",
+ "fatima-engine",
  "js-sys",
  "serde-wasm-bindgen",
  "serde_json",
