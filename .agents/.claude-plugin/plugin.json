@@ -1,7 +1,16 @@
 {
-	"author": { "name": "Fatima" },
+	"author": {
+		"name": "Fatima"
+	},
 	"description": "Fatima project agents, skills, and MCP servers",
 	"hooks": "./hooks/hooks.json",
 	"name": "fatima",
-	"version": "1.0.0"
+	"version": "1.0.0",
+	"skills": [
+		"./skills/ai-memory",
+		"./skills/core",
+		"./skills/design",
+		"./skills/marketing",
+		"./skills/superpowers"
+	]
 }
