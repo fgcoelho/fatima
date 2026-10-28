@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::vault::crypto::to_key;
 use crate::vault::types::{SecretRecord, StoredVaultData, UserSecretRecord};
+use crate::vault::user_key::UserKeySecrets;
 use crate::{FatimaError, Result};
 
 pub(crate) mod crypto;
@@ -173,11 +174,6 @@ pub(crate) fn open(file: &StoredVaultFile, password: &str) -> Result<Opened> {
         user_environment_secrets,
         data,
     })
-}
-
-pub(crate) struct UserKeySecrets {
-    pub environment_secrets: BTreeMap<String, [u8; 32]>,
-    pub user_environment_secrets: BTreeMap<String, [u8; 32]>,
 }
 
 pub(crate) fn authenticate_user_key<'a>(

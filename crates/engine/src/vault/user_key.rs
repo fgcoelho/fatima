@@ -16,6 +16,11 @@ use super::types::{
     VaultOptions, WrappedKey, WrappedUserEnvironmentSecret, USER_KEY_ID_LENGTH, USER_KEY_PREFIX,
 };
 
+pub(crate) struct UserKeySecrets {
+    pub environment_secrets: BTreeMap<String, [u8; 32]>,
+    pub user_environment_secrets: BTreeMap<String, [u8; 32]>,
+}
+
 pub(crate) fn list_secrets_with_user_key(
     raw_key: &str,
     environment: Option<&str>,
@@ -197,7 +202,7 @@ pub(crate) fn authenticate_user_key(
     })
 }
 
-fn authenticate_v1_scheme(record: &UserKeyRecord, secret: &str) -> Result<legacy::UserKeySecrets> {
+fn authenticate_v1_scheme(record: &UserKeyRecord, secret: &str) -> Result<UserKeySecrets> {
     let salt = record.salt.as_deref().ok_or(FatimaError::Decrypt)?;
     let environments = record
         .wrapped_environment_secrets
@@ -222,7 +227,7 @@ fn authenticate_v2_scheme(
     record: &UserKeyRecord,
     project_id: &str,
     secret: &str,
-) -> Result<legacy::UserKeySecrets> {
+) -> Result<UserKeySecrets> {
     let keys = derive_user_key(secret.as_bytes())?;
     if encode_b64(&keys.hash) != record.secret_hash {
         return Err(FatimaError::message("Invalid Fatima user key."));
@@ -250,7 +255,7 @@ fn authenticate_v2_scheme(
             )?,
         );
     }
-    Ok(legacy::UserKeySecrets {
+    Ok(UserKeySecrets {
         environment_secrets,
         user_environment_secrets,
     })
