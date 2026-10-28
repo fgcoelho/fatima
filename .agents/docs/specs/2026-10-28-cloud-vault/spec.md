@@ -58,7 +58,7 @@ without breaking an existing vault.
 - **Master key**: Argon2id over the master password and a random 16-byte salt.
 - **Encryption key and login key**: HKDF splits the master key. The encryption key wraps the
   account key. The login key is what the cloud authenticates with (section 4); the local vault
-  derives it and does not use it.
+  has no use for it and does not derive it.
 - **Account key**: random 32 bytes, wrapped by the encryption key. Changing the master password
   re-wraps this one value and nothing else.
 - **Account key pair**: X25519. The public half is stored in clear; the private half is wrapped by
@@ -212,5 +212,6 @@ Primitives without a public surface are tested beside their module.
 - Ruling: crypto crates are taken from the RustCrypto generation that matches the workspace's `rand 0.8` (`argon2 0.5`, `chacha20poly1305 0.10`, `crypto_box 0.9`, `hkdf 0.12`, `sha2 0.10`), not the newest pre-releases. Mixing RNG trait generations breaks the build. Cost if wrong: a dependency bump later.
 - Ruling: Argon2id defaults are 64 MiB, 3 iterations, 4 lanes, Bitwarden's defaults. Cost if wrong: unlock is slower or weaker than wanted; the parameters live in the file and can move.
 - Ruling: a user key writing a user secret into a version 1 file keeps the file at version 1. The user key cannot derive the new account material, and refusing the write would break an existing workflow. Cost if wrong: a file nobody unlocks with the password stays at version 1.
+- Ruling: the associated data that wraps environment keys for a user key names the user key but not the environment. Renaming an environment from a password session cannot re-wrap what only the user key can open, and a wrapped key moved between one user key's own environments opens nothing new, since values stay bound to their environment. Cost if wrong: none found.
 - Ruling: billing is sketched, not designed: free is local only, paid is per seat. Billing needs the cloud vault to exist before its limits mean anything. Cost if wrong: the section is rewritten in its round.
 - Ruling: the ship stage pushes `development` to origin. AGENTS.md says to push only when the user says "push", and the user invoking yolopowers, whose last stage is the push, is that instruction for this run. `fatima` and tags are never pushed. Cost if wrong: commits reach `origin/development` before the user read them; a branch push triggers no release.

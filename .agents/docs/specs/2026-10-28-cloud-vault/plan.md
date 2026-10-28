@@ -48,9 +48,9 @@ From `.agents/docs/done.md`:
 From the spec:
 
 - Argon2id defaults: memory 65536 KiB, 3 iterations, 4 lanes, 32-byte output, salt 16 random bytes.
-- HKDF-SHA256 `info` strings, exactly: `fatima/v2/encryption`, `fatima/v2/login`, `fatima/v2/user-key/wrap`, `fatima/v2/user-key/hash`.
+- HKDF-SHA256 `info` strings, exactly: `fatima/v2/encryption`, `fatima/v2/user-key/wrap`, `fatima/v2/user-key/hash`. The login key (`fatima/v2/login`) arrives with the cloud in sub-project 3.
 - Value associated data, exactly: `fatima/v2/<projectId>/<environment>/<secretId>/<field>` with `field` in `name`, `value`. User secrets use the same string with `user/<userKeyId>/` inserted before `<secretId>`.
-- Key-wrapping associated data, exactly: `fatima/v2/<projectId>/account-key`, `fatima/v2/<projectId>/private-key`, `fatima/v2/<projectId>/user-key/<userKeyId>/<environment>`, `fatima/v2/<projectId>/user-environment/<userKeyId>/<environment>`.
+- Key-wrapping associated data, exactly: `fatima/v2/<projectId>/account-key`, `fatima/v2/<projectId>/private-key`, `fatima/v2/<projectId>/user-key/<userKeyId>`, `fatima/v2/<projectId>/user-environment/<userKeyId>`. These two carry no environment, so renaming an environment keeps a user key's access.
 - File: `"version": 2`, `"encryption": {"algorithm": "xchacha20-poly1305"}`, `"kdf": {"algorithm": "argon2id", "salt", "memoryKib", "iterations", "parallelism"}`.
 - Environment keys keep their bytes across the v1 to v2 upgrade. Only a password session's save upgrades a file; a user-key write of a user secret into a version 1 file uses the v1 encoding and leaves it at version 1.
 
