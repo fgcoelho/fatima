@@ -474,6 +474,21 @@ fn v1_wrong_password_is_wrong_master_password() {
 }
 
 #[test]
+fn v1_vault_without_environments_is_rejected() {
+    let temp = tempfile::tempdir().unwrap();
+    let (options, _) = fixture_options(&temp);
+    let path = temp.path().join(".fatima/vault.json");
+    let mut store: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    store["environments"] = json!([]);
+    std::fs::write(&path, serde_json::to_string(&store).unwrap()).unwrap();
+
+    let error = FatimaVault::unlock_with_password("fixture-password", Some(options)).unwrap_err();
+
+    assert!(error.to_string().contains("no environments"));
+}
+
+#[test]
 fn user_key_created_after_upgrade_is_v2() {
     let temp = tempfile::tempdir().unwrap();
     let (options, _) = fixture_options(&temp);

@@ -106,6 +106,9 @@ pub(crate) fn open(file: &StoredVaultFile, password: &str) -> Result<Opened> {
         FatimaError::Decrypt => FatimaError::WrongMasterPassword,
         other => other,
     };
+    if file.environments.is_empty() {
+        return Err(FatimaError::message("Fatima vault has no environments."));
+    }
     let mut environment_secrets = BTreeMap::new();
     for environment in &file.environments {
         environment_secrets.insert(
@@ -120,7 +123,8 @@ pub(crate) fn open(file: &StoredVaultFile, password: &str) -> Result<Opened> {
         for (environment, wrapped) in &user_key.wrapped_user_environment_secrets {
             by_environment.insert(
                 environment.clone(),
-                unwrap_key(&wrapped.by_master_password, &master_password_key)?,
+                unwrap_key(&wrapped.by_master_password, &master_password_key)
+                    .map_err(wrong_password)?,
             );
         }
         user_environment_secrets.insert(user_key.id.clone(), by_environment);
