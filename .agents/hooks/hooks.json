@@ -8,6 +8,10 @@
 						"command": "bun \"${CLAUDE_PROJECT_DIR}/scripts/dev/analyze.ts\"",
 						"timeout": 10,
 						"type": "command"
+					},
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event post-tool-use --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
 					}
 				]
 			}
@@ -19,6 +23,87 @@
 						"command": "bun \"${CLAUDE_PROJECT_DIR}/scripts/dev/analyze.ts\"",
 						"statusMessage": "Running cargo, knip and static analysis...",
 						"timeout": 300,
+						"type": "command"
+					},
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event stop --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
+					}
+				]
+			}
+		],
+		"SessionStart": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event session-start --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
+					}
+				]
+			}
+		],
+		"UserPromptSubmit": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event user-prompt-submit --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
+					}
+				]
+			}
+		],
+		"PreToolUse": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event pre-tool-use --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
+					}
+				]
+			}
+		],
+		"PreCompact": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event pre-compact --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
+					}
+				]
+			}
+		],
+		"SessionEnd": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event session-end --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
+					}
+				]
+			}
+		],
+		"SubagentStart": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event subagent-start --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
+						"type": "command"
+					}
+				]
+			}
+		],
+		"SubagentStop": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"command": "if [ -n \"$AI_MEMORY_SERVER_URL\" ] && command -v ai-memory >/dev/null 2>&1; then ai-memory hook --event subagent-stop --agent claude-code --server-url \"$AI_MEMORY_SERVER_URL\" --project-strategy repo-root; fi",
 						"type": "command"
 					}
 				]

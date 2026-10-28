@@ -27,6 +27,76 @@
 				"CODEGRAPH_TELEMETRY": "0"
 			},
 			"type": "stdio"
+		},
+		"ai-memory": {
+			"type": "http",
+			"url": "${AI_MEMORY_SERVER_URL}/mcp"
+		},
+		"exa": {
+			"type": "http",
+			"url": "https://mcp.exa.ai/mcp",
+			"headers": {
+				"x-api-key": "${EXA_API_KEY}"
+			}
+		},
+		"neon": {
+			"type": "http",
+			"url": "https://mcp.neon.tech/mcp?readonly=true&projectId=${NEON_PROJECT_ID}",
+			"headers": {
+				"Authorization": "Bearer ${NEON_API_KEY}"
+			}
+		},
+		"cloudflare": {
+			"type": "http",
+			"url": "https://mcp.cloudflare.com/mcp",
+			"headers": {
+				"Authorization": "Bearer ${CLOUDFLARE_API_KEY}"
+			}
+		},
+		"stripe": {
+			"type": "http",
+			"url": "https://mcp.stripe.com",
+			"headers": {
+				"Authorization": "Bearer ${STRIPE_SECRET_KEY}"
+			}
+		},
+		"resend": {
+			"args": ["-y", "resend-mcp@2.27.1"],
+			"command": "npx",
+			"env": {
+				"RESEND_API_KEY": "${RESEND_API_KEY}"
+			},
+			"type": "stdio"
+		},
+		"playwright": {
+			"args": [
+				"-y",
+				"@playwright/mcp@0.0.83",
+				"--browser",
+				"chromium",
+				"--caps",
+				"vision",
+				"--viewport-size",
+				"1920x1080",
+				"--console-level",
+				"warning",
+				"--output-dir",
+				".playwright-mcp",
+				"--isolated"
+			],
+			"command": "npx",
+			"type": "stdio"
+		},
+		"search-console": {
+			"args": ["-y", "@ni-c/google-search-console-mcp@0.3.0"],
+			"command": "npx",
+			"env": {
+				"GSC_SERVICE_ACCOUNT_KEY_FILE": "${CLAUDE_PLUGIN_ROOT}/../.keys/google-cloud-mcp.json",
+				"GSC_SITE_URL": "sc-domain:fatimajs.dev",
+				"GSC_ALLOWED_SITES": "sc-domain:fatimajs.dev,https://fatimajs.dev/",
+				"GSC_DENY_TOOLS": "delete_site,unverify_site,update_site_owners,request_indexing,get_indexing_status"
+			},
+			"type": "stdio"
 		}
 	}
 }
