@@ -69,10 +69,12 @@ Implementers never run the typecheck, lint, tests or build (AGENTS.md, `## Subag
 ### Task 1: Rename `fatima-core` to `fatima-engine`
 
 **Files:**
+
 - Move: `crates/core/` to `crates/engine/` (`git mv`)
 - Modify: `Cargo.toml` (members, workspace dependency `fatima-engine = { path = "crates/engine", ... }`), `crates/engine/Cargo.toml` (`name = "fatima-engine"`), `crates/cli/Cargo.toml`, `crates/wasm/Cargo.toml`, every `use fatima_core` in `crates/cli/src/**`, `crates/wasm/src/lib.rs`, `crates/engine/tests/*.rs`, `crates/task/src/main.rs` (package list, paths, the manifest line checks), `package.json` (`publish:crates`), `.github/workflows/release.yml`, `.agents/docs/{done,errors,runtime,code}.md`, `AGENTS.md`, `knip.json` or `.jscpd.json` if they name the path, and any page under `packages/web/src/content/docs/` that names the crate or the path.
 
 **Interfaces:**
+
 - Produces: crate `fatima-engine`, Rust path `fatima_engine`, directory `crates/engine`. Every later task uses these.
 
 - [ ] **Step 1:** `git mv crates/core crates/engine`, then rename the package and every reference listed above. Find them all with `grep -rn "fatima-core\|fatima_core\|crates/core" --exclude-dir=target --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.codegraph .`; only `.agents/docs/specs/2026-10-28-cloud-vault/` may still match afterwards, where the spec describes the rename.
@@ -82,6 +84,7 @@ Implementers never run the typecheck, lint, tests or build (AGENTS.md, `## Subag
 ### Task 2: Move the v1 crypto and file types into `vault/legacy/`, and commit a v1 fixture
 
 **Files:**
+
 - Create: `crates/engine/tests/fixtures/v1/.fatima/vault.json`, `crates/engine/tests/fixtures/v1/user-key.txt`
 - Move: `crates/engine/src/vault/crypto.rs` to `crates/engine/src/vault/legacy/crypto.rs`
 - Create: `crates/engine/src/vault/legacy/mod.rs`, holding the v1 stored-file types moved out of `types.rs` (`StoredVaultFile`, `EnvironmentRecord`, `StoredSecretRecord`, `StoredUserSecretRecord`, `UserKeyRecord`, `WrappedUserEnvironmentSecret`, `VaultKdf`, `VaultEncryption`, `EncryptedBlob`)
@@ -89,6 +92,7 @@ Implementers never run the typecheck, lint, tests or build (AGENTS.md, `## Subag
 - Test: `crates/engine/tests/vault.rs`
 
 **Interfaces:**
+
 - Produces: module `vault::legacy` with `legacy::crypto::{encrypt_bytes, decrypt_bytes, derive_key, random_bytes, random_b64, encode_b64, decode_b64}` and the v1 types, unchanged in behaviour. Task 4 reads v1 files only through it.
 - Produces: the fixture vault, password `fixture-password`, with environments `development`, `staging`, `production`; secret `DATABASE_URL` = `postgres://dev` in development and `postgres://prod` in production; secret `API_TOKEN` = `dev-token` in development; a user key named `ci` for `development` whose raw value is in `user-key.txt`, with a user secret `DEBUG` = `1` set through it in development. The values are fake and must stay obviously fake.
 
@@ -100,12 +104,14 @@ Implementers never run the typecheck, lint, tests or build (AGENTS.md, `## Subag
 ### Task 3: v2 primitives and the v2 vault for new stores
 
 **Files:**
+
 - Create: `crates/engine/src/vault/crypto.rs` (v2 primitives, with a `#[cfg(test)]` block)
 - Modify: `Cargo.toml` (workspace deps `argon2 = "0.5"`, `chacha20poly1305 = "0.10"`, `crypto_box = { version = "0.9", features = ["seal"] }`, `hkdf = "0.12"`, `sha2 = "0.10"`; `[profile.dev.package.argon2]` and `[profile.dev.package.blake2]` at `opt-level = 3` beside the existing scrypt entries), `crates/engine/Cargo.toml`
 - Modify: `crates/engine/src/error.rs` (variants below), `crates/engine/src/vault/types.rs` (v2 stored types), `crates/engine/src/vault/store.rs` (initialize, unlock and save for version 2), `crates/engine/src/vault/user_key.rs`, `crates/engine/src/vault/key_management.rs`, `crates/engine/src/vault/password.rs`
 - Test: `crates/engine/tests/vault.rs`
 
 **Interfaces:**
+
 - Consumes: `vault::legacy` (Task 2) for nothing yet; v1 files are Task 4.
 - Produces, in `vault/crypto.rs`:
   - `pub(crate) struct KdfParams { pub memory_kib: u32, pub iterations: u32, pub parallelism: u32 }` with `Default` = 65536, 3, 4, serde camelCase.
@@ -132,10 +138,12 @@ Implementers never run the typecheck, lint, tests or build (AGENTS.md, `## Subag
 ### Task 4: Open version 1 vaults and upgrade them on save
 
 **Files:**
+
 - Modify: `crates/engine/src/vault/store.rs`, `crates/engine/src/vault/user_key.rs`, `crates/engine/src/vault/legacy/mod.rs` (the v1 read path that turns a v1 file into the in-memory data and keys)
 - Test: `crates/engine/tests/vault.rs`
 
 **Interfaces:**
+
 - Consumes: `vault::legacy` (Task 2), `vault::crypto`, the v2 types and `UnlockedVault` (Task 3).
 - Produces: `unlock_store` accepts version 1 and returns an `UnlockedVault` whose next `save` writes version 2. `authenticate_user_key` accepts both a v1-scheme record (read through `legacy::crypto`) and a v2 one, on a version 1 or a version 2 file.
 
@@ -153,6 +161,7 @@ Implementers never run the typecheck, lint, tests or build (AGENTS.md, `## Subag
 ### Task 5: Docs
 
 **Files:**
+
 - Modify: `.agents/docs/runtime.md` (the crypto ownership bullet names `crates/engine/src/vault/crypto.rs` and `vault/legacy/`), `.agents/docs/code.md` (the four surfaces: `fatima-engine` and `fatima-cli` on crates.io, with `fatima-core` frozen), and any page under `packages/web/src/content/docs/` that describes the vault file's encryption, KDF or version.
 
 - [ ] **Step 1:** Make the edits, following `.agents/skills/core/writing/SKILL.md`. Describe what is, not what changed.

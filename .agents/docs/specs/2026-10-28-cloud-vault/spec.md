@@ -43,12 +43,12 @@ crates.io at its last version and receives no further releases.
 
 RustCrypto and dalek crates, all of which build for native and `wasm32-unknown-unknown`:
 
-| Purpose                         | Primitive                                            |
-| ------------------------------- | ---------------------------------------------------- |
-| Master password to master key   | Argon2id, 64 MiB memory, 3 iterations, 4 lanes        |
-| Splitting a key by purpose      | HKDF-SHA256 with a distinct `info` per purpose        |
-| Symmetric encryption            | XChaCha20-Poly1305 with associated data               |
-| Sealing a key to a member       | X25519 sealed box (`crypto_box`)                      |
+| Purpose                       | Primitive                                      |
+| ----------------------------- | ---------------------------------------------- |
+| Master password to master key | Argon2id, 64 MiB memory, 3 iterations, 4 lanes |
+| Splitting a key by purpose    | HKDF-SHA256 with a distinct `info` per purpose |
+| Symmetric encryption          | XChaCha20-Poly1305 with associated data        |
+| Sealing a key to a member     | X25519 sealed box (`crypto_box`)               |
 
 The Argon2id parameters are stored next to the salt in every vault, so they can be raised later
 without breaking an existing vault.
