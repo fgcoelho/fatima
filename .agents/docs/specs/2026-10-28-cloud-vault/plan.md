@@ -52,7 +52,7 @@ From the spec:
 - Value associated data, exactly: `fatima/v2/<projectId>/<environment>/<secretId>/<field>` with `field` in `name`, `value`. User secrets use the same string with `user/<userKeyId>/` inserted before `<secretId>`.
 - Key-wrapping associated data, exactly: `fatima/v2/<projectId>/account-key`, `fatima/v2/<projectId>/private-key`, `fatima/v2/<projectId>/user-key/<userKeyId>/<environment>`, `fatima/v2/<projectId>/user-environment/<userKeyId>/<environment>`.
 - File: `"version": 2`, `"encryption": {"algorithm": "xchacha20-poly1305"}`, `"kdf": {"algorithm": "argon2id", "salt", "memoryKib", "iterations", "parallelism"}`.
-- Environment keys keep their bytes across the v1 to v2 upgrade. No version 1 file is ever written again.
+- Environment keys keep their bytes across the v1 to v2 upgrade. Only a password session's save upgrades a file; a user-key write of a user secret into a version 1 file uses the v1 encoding and leaves it at version 1.
 
 Implementers never run the typecheck, lint, tests or build (AGENTS.md, `## Subagents`). They write the failing test first, then the code, read their own diff, commit by path following `.agents/skills/core/commit/SKILL.md`, and name the covering test files in their report. The controller runs the gates.
 
