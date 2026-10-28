@@ -29,7 +29,7 @@ and traces written to `.playwright-mcp/`, which is ignored. Needs no credentials
 
 ## search-console
 
-Google Search Console data for `fatimajs.dev`: queries, pages, sitemaps. Scoped to that site by
+Google Search Console data for `fatima.dev`: queries, pages, sitemaps. Scoped to that site by
 `GSC_SITE_URL` and `GSC_ALLOWED_SITES`, and `GSC_DENY_TOOLS` blocks the destructive tools
 (`delete_site`, `unverify_site`, `update_site_owners`, `request_indexing`, `get_indexing_status`).
 Reads a service account key from `.keys/google-cloud-mcp.json`, which is ignored.

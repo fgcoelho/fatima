@@ -92,8 +92,8 @@
 			"command": "npx",
 			"env": {
 				"GSC_SERVICE_ACCOUNT_KEY_FILE": "${CLAUDE_PLUGIN_ROOT}/../.keys/google-cloud-mcp.json",
-				"GSC_SITE_URL": "sc-domain:fatimajs.dev",
-				"GSC_ALLOWED_SITES": "sc-domain:fatimajs.dev,https://fatimajs.dev/",
+				"GSC_SITE_URL": "sc-domain:fatima.dev",
+				"GSC_ALLOWED_SITES": "sc-domain:fatima.dev,https://fatima.dev/",
 				"GSC_DENY_TOOLS": "delete_site,unverify_site,update_site_owners,request_indexing,get_indexing_status"
 			},
 			"type": "stdio"
