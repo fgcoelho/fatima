@@ -457,7 +457,28 @@ fn v1_user_key_survives_the_upgrade() {
     assert_eq!(secrets["API_TOKEN"], "dev-token");
     assert_eq!(secrets["DEBUG"], "1");
     let store = read_vault_json(&temp);
-    assert_ne!(store["userKeys"][0]["scheme"], "v2");
+    let record = &store["userKeys"][0];
+    assert_eq!(record["scheme"], "v1");
+    let fixture: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v1/.fatima/vault.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let original = &fixture["userKeys"][0];
+    assert_eq!(
+        record["wrappedEnvironmentSecrets"],
+        original["wrappedEnvironmentSecrets"]
+    );
+    let wrapped = original["wrappedUserEnvironmentSecrets"].as_object().unwrap();
+    assert!(!wrapped.is_empty());
+    for (environment, blobs) in wrapped {
+        assert_eq!(
+            record["wrappedUserEnvironmentSecrets"][environment]["byUserKey"],
+            blobs["byUserKey"]
+        );
+    }
     assert!(store["userKeys"][0]["wrappedUserEnvironmentSecrets"]["development"]
         .get("byAccountKey")
         .is_some());
@@ -491,7 +512,7 @@ fn v1_vault_without_environments_is_rejected() {
 #[test]
 fn user_key_created_after_upgrade_is_v2() {
     let temp = tempfile::tempdir().unwrap();
-    let (options, _) = fixture_options(&temp);
+    let (options, fixture_key) = fixture_options(&temp);
 
     let mut vault =
         FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
@@ -509,11 +530,16 @@ fn user_key_created_after_upgrade_is_v2() {
         .find(|record| record["id"] == generated.record.id.as_str())
         .unwrap();
     assert_eq!(record["scheme"], "v2");
-    let keyed = FatimaVault::authenticate_with_user_key(&generated.key, Some(options)).unwrap();
+    let keyed =
+        FatimaVault::authenticate_with_user_key(&generated.key, Some(options.clone())).unwrap();
     assert_eq!(
         keyed.get_secrets(Some("production")).unwrap()["DATABASE_URL"],
         "postgres://prod"
     );
+    let fixture_keyed = FatimaVault::authenticate_with_user_key(&fixture_key, Some(options)).unwrap();
+    let secrets = fixture_keyed.get_secrets(Some("development")).unwrap();
+    assert_eq!(secrets["DEBUG"], "1");
+    assert_eq!(secrets["DATABASE_URL"], "postgres://dev");
 }
 
 #[test]
