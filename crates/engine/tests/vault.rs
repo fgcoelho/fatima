@@ -478,6 +478,7 @@ fn v1_user_key_survives_the_upgrade() {
     )
     .unwrap();
     let original = &fixture["userKeys"][0];
+    assert_ne!(record["secretHash"], original["secretHash"]);
     assert_eq!(
         record["wrappedEnvironmentSecrets"],
         original["wrappedEnvironmentSecrets"]
@@ -588,12 +589,81 @@ fn v1_user_key_writes_a_user_secret_before_the_upgrade() {
     assert_eq!(secrets["DEBUG"], "1");
 }
 
+fn fixture_user_key_hash() -> serde_json::Value {
+    let fixture: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/v1/.fatima/vault.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    fixture["userKeys"][0]["secretHash"].clone()
+}
+
+#[test]
+fn v1_user_key_hash_is_not_its_wrapping_key_after_upgrade() {
+    let temp = tempfile::tempdir().unwrap();
+    let (options, user_key) = fixture_options(&temp);
+    let original = fixture_user_key_hash();
+
+    let mut vault =
+        FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
+    vault.save().unwrap();
+
+    let store = read_vault_json(&temp);
+    assert_eq!(store["version"], 2);
+    assert_ne!(store["userKeys"][0]["secretHash"], original);
+    let keyed = FatimaVault::authenticate_with_user_key(&user_key, Some(options)).unwrap();
+    let secrets = keyed.get_secrets(Some("development")).unwrap();
+    assert_eq!(secrets["DATABASE_URL"], "postgres://dev");
+    assert_eq!(secrets["API_TOKEN"], "dev-token");
+    assert_eq!(secrets["DEBUG"], "1");
+}
+
+#[test]
+fn v1_user_key_writes_after_the_upgrade() {
+    let temp = tempfile::tempdir().unwrap();
+    let (options, user_key) = fixture_options(&temp);
+
+    let mut vault =
+        FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
+    vault.save().unwrap();
+
+    let mut keyed =
+        FatimaVault::authenticate_with_user_key(&user_key, Some(options.clone())).unwrap();
+    keyed
+        .set_user_secret("development", "LOG", "debug")
+        .unwrap();
+
+    let keyed = FatimaVault::authenticate_with_user_key(&user_key, Some(options)).unwrap();
+    let secrets = keyed.get_secrets(Some("development")).unwrap();
+    assert_eq!(secrets["LOG"], "debug");
+    assert_eq!(secrets["DEBUG"], "1");
+}
+
+#[test]
+fn v1_user_key_survives_a_rename_after_the_upgrade() {
+    let temp = tempfile::tempdir().unwrap();
+    let (options, user_key) = fixture_options(&temp);
+
+    let mut vault =
+        FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
+    vault.rename_environment("development", "dev").unwrap();
+    vault.save().unwrap();
+
+    let keyed = FatimaVault::authenticate_with_user_key(&user_key, Some(options)).unwrap();
+    let secrets = keyed.get_secrets(Some("dev")).unwrap();
+    assert_eq!(secrets["DATABASE_URL"], "postgres://dev");
+    assert_eq!(secrets["DEBUG"], "1");
+}
+
 #[test]
 fn debug_output_hides_key_material() {
     let temp = tempfile::tempdir().unwrap();
     let (options, user_key) = fixture_options(&temp);
 
-    let vault =
+    let mut vault =
         FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
     let keyed = FatimaVault::authenticate_with_user_key(&user_key, Some(options)).unwrap();
 
@@ -603,4 +673,8 @@ fn debug_output_hides_key_material() {
         assert!(!output.contains("account_key"), "{output}");
         assert!(!output.contains("postgres://"), "{output}");
     }
+    let generated = vault
+        .generate_user_key("debug", vec!["development".to_string()])
+        .unwrap();
+    assert!(!format!("{generated:?}").contains(&generated.key));
 }

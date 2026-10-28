@@ -6,7 +6,8 @@ use crate::{FatimaError, Result};
 use super::account::unwrap_user_environment_key;
 use super::associated_data::{self, Field};
 use super::crypto::{
-    decrypt, derive_user_key, encode_b64, encrypt, random_b64, random_key, to_key,
+    decrypt, derive_user_key, encode_b64, encrypt, hash_legacy_user_key, random_b64, random_key,
+    to_key,
 };
 use super::domain::{assert_environment, to_environment_map};
 use super::legacy;
@@ -175,7 +176,7 @@ pub(crate) fn authenticate_user_key(
             legacy::authenticate_user_key(
                 &secret,
                 &record.salt,
-                &record.secret_hash,
+                |key| Ok(encode_b64(key) == record.secret_hash),
                 &record.wrapped_environment_secrets,
                 record
                     .wrapped_user_environment_secrets
@@ -219,7 +220,7 @@ fn authenticate_v1_scheme(record: &UserKeyRecord, secret: &str) -> Result<UserKe
     legacy::authenticate_user_key(
         secret,
         salt,
-        &record.secret_hash,
+        |key| Ok(hash_legacy_user_key(key)? == record.secret_hash),
         environments,
         user_environments,
     )

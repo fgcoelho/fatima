@@ -187,12 +187,12 @@ pub(crate) fn open(file: &StoredVaultFile, password: &str) -> Result<Opened> {
 pub(crate) fn authenticate_user_key<'a>(
     secret: &str,
     salt: &str,
-    secret_hash: &str,
+    hash_matches: impl FnOnce(&[u8]) -> Result<bool>,
     environments: impl IntoIterator<Item = (&'a String, &'a EncryptedBlob)>,
     user_environments: impl IntoIterator<Item = (&'a String, &'a EncryptedBlob)>,
 ) -> Result<UserKeySecrets> {
     let user_key = crypto::derive_key(secret, salt)?;
-    if crate::vault::crypto::encode_b64(&user_key) != secret_hash {
+    if !hash_matches(&user_key)? {
         return Err(FatimaError::message("Invalid Fatima user key."));
     }
     Ok(UserKeySecrets {

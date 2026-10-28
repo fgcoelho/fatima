@@ -1,6 +1,6 @@
 use crate::Result;
 
-use super::crypto::{derive_encryption_key, derive_master_key, random_bytes};
+use super::crypto::{derive_encryption_key, derive_master_key, random_bytes, KDF_SALT_LENGTH};
 use super::domain::assert_non_empty_password;
 use super::handle::FatimaVault;
 
@@ -8,7 +8,7 @@ impl FatimaVault {
     pub fn change_password(&mut self, password: &str) -> Result<()> {
         assert_non_empty_password(password)?;
         let unlocked = self.require_unlocked_mut()?;
-        let salt = random_bytes(16);
+        let salt = random_bytes(KDF_SALT_LENGTH);
         let master_key = derive_master_key(password, &salt, &unlocked.kdf_params)?;
         unlocked.master_encryption_key = derive_encryption_key(&master_key)?;
         unlocked.kdf_salt = salt;

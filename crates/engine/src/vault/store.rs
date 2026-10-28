@@ -14,7 +14,7 @@ use super::account::{
 use super::associated_data::{self, Field};
 use super::crypto::{
     decode_b64, decrypt, derive_encryption_key, derive_master_key, encode_b64, encrypt,
-    random_bytes, random_key, Ciphertext, KdfParams,
+    hash_legacy_user_key, random_bytes, random_key, Ciphertext, KdfParams, KDF_SALT_LENGTH,
 };
 use super::domain::assert_non_empty_password;
 use super::legacy;
@@ -26,7 +26,6 @@ use super::types::{
     DEFAULT_STORE_PATH,
 };
 
-const KDF_SALT_LENGTH: usize = 16;
 const VAULT_VERSION: u8 = 2;
 
 pub(crate) fn has_store(options: Option<&VaultOptions>) -> bool {
@@ -290,7 +289,7 @@ fn upgrade_user_key(
         name: record.name.clone(),
         scheme: UserKeyScheme::V1,
         salt: Some(record.salt.clone()),
-        secret_hash: record.secret_hash.clone(),
+        secret_hash: hash_legacy_user_key(&decode_b64(&record.secret_hash)?)?,
         wrapped_environment_secrets: record
             .wrapped_environment_secrets
             .iter()

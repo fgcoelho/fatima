@@ -204,10 +204,19 @@ pub struct FatimaVaultSnapshot {
     pub user_secrets: Vec<UserSecretRecord>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct GeneratedUserKey {
     pub key: String,
     pub record: UserKeyRecord,
+}
+
+impl fmt::Debug for GeneratedUserKey {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("GeneratedUserKey")
+            .field("record", &self.record)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

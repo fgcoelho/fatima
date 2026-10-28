@@ -17,6 +17,8 @@ use crate::{FatimaError, Result};
 const MAX_MEMORY_KIB: u32 = 1_048_576;
 const MAX_ITERATIONS: u32 = 16;
 const MAX_PARALLELISM: u32 = 16;
+const ARGON2_MIN_MEMORY_KIB_PER_LANE: u32 = 8;
+pub(crate) const KDF_SALT_LENGTH: usize = 16;
 const NONCE_LENGTH: usize = 24;
 const ENCRYPTION_INFO: &[u8] = b"fatima/v2/encryption";
 const USER_KEY_WRAP_INFO: &[u8] = b"fatima/v2/user-key/wrap";
@@ -72,6 +74,7 @@ pub(crate) fn derive_master_key(
     if !(1..=MAX_MEMORY_KIB).contains(&params.memory_kib)
         || !(1..=MAX_ITERATIONS).contains(&params.iterations)
         || !(1..=MAX_PARALLELISM).contains(&params.parallelism)
+        || params.memory_kib < ARGON2_MIN_MEMORY_KIB_PER_LANE * params.parallelism
     {
         return Err(FatimaError::InvalidKdfParams);
     }
@@ -99,6 +102,14 @@ pub(crate) fn derive_user_key(secret: &[u8]) -> Result<UserKeyKeys> {
         wrapping: expand(&hkdf, USER_KEY_WRAP_INFO)?,
         hash: expand(&hkdf, USER_KEY_HASH_INFO)?,
     })
+}
+
+/// The v2 hash of a v1 user key's scrypt output, so the stored hash is not the wrapping key.
+pub(crate) fn hash_legacy_user_key(scrypt_key: &[u8]) -> Result<String> {
+    Ok(encode_b64(&expand(
+        &Hkdf::<Sha256>::new(None, scrypt_key),
+        USER_KEY_HASH_INFO,
+    )?))
 }
 
 fn expand(hkdf: &Hkdf<Sha256>, info: &[u8]) -> Result<[u8; 32]> {
@@ -298,6 +309,11 @@ mod tests {
             },
             KdfParams {
                 parallelism: 17,
+                ..valid.clone()
+            },
+            KdfParams {
+                memory_kib: 4,
+                parallelism: 1,
                 ..valid.clone()
             },
         ];
