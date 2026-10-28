@@ -5,9 +5,10 @@ use crate::{FatimaError, Result};
 
 use super::account::unwrap_user_environment_key;
 use super::associated_data::{self, Field};
-use super::crypto::{decrypt, derive_user_key, encrypt, random_key, to_key};
+use super::crypto::{
+    decrypt, derive_user_key, encode_b64, encrypt, random_b64, random_key, to_key,
+};
 use super::domain::{assert_environment, to_environment_map};
-use super::legacy::crypto::{encode_b64, random_b64};
 use super::store::{decrypt_environment_value, environment_names, read_store};
 use super::types::{
     GeneratedUserKey, UserKeyRecord, VaultOptions, WrappedUserEnvironmentSecret,
@@ -251,7 +252,7 @@ fn parse_raw_user_key(raw_key: &str) -> Result<(String, String)> {
 
 fn create_raw_user_key() -> (String, String, String) {
     let id = random_b64(8);
-    let secret = random_b64(24);
+    let secret = random_b64(32);
     let raw_key = format!("{USER_KEY_PREFIX}{id}_{secret}");
     (id, secret, raw_key)
 }

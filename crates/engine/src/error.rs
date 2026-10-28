@@ -25,6 +25,8 @@ pub enum FatimaError {
     WrongMasterPassword,
     #[error("failed to decrypt Fatima vault data")]
     Decrypt,
+    #[error("Fatima vault key derivation parameters are out of range")]
+    InvalidKdfParams,
     #[error("Fatima vault version {version} is not supported")]
     UnsupportedVaultVersion { version: u8 },
 }

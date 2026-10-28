@@ -9,10 +9,15 @@ use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
+
 use crate::{FatimaError, Result};
 
-use super::legacy::crypto::{decode_b64, encode_b64};
 
+const MAX_MEMORY_KIB: u32 = 1_048_576;
+const MAX_ITERATIONS: u32 = 16;
+const MAX_PARALLELISM: u32 = 16;
 const NONCE_LENGTH: usize = 24;
 const ENCRYPTION_INFO: &[u8] = b"fatima/v2/encryption";
 const USER_KEY_WRAP_INFO: &[u8] = b"fatima/v2/user-key/wrap";
@@ -65,6 +70,12 @@ pub(crate) fn derive_master_key(
     salt: &[u8],
     params: &KdfParams,
 ) -> Result<[u8; 32]> {
+    if !(1..=MAX_MEMORY_KIB).contains(&params.memory_kib)
+        || !(1..=MAX_ITERATIONS).contains(&params.iterations)
+        || !(1..=MAX_PARALLELISM).contains(&params.parallelism)
+    {
+        return Err(FatimaError::InvalidKdfParams);
+    }
     let params = Params::new(
         params.memory_kib,
         params.iterations,
@@ -162,6 +173,26 @@ pub(crate) fn open_sealed(sealed: &str, key_pair: &KeyPair) -> Result<Vec<u8>> {
         .map_err(|_| FatimaError::Decrypt)
 }
 
+pub(crate) fn random_bytes(length: usize) -> Vec<u8> {
+    let mut bytes = vec![0; length];
+    OsRng.fill_bytes(&mut bytes);
+    bytes
+}
+
+pub(crate) fn random_b64(length: usize) -> String {
+    encode_b64(&random_bytes(length))
+}
+
+pub(crate) fn encode_b64(value: &[u8]) -> String {
+    URL_SAFE_NO_PAD.encode(value)
+}
+
+pub(crate) fn decode_b64(value: &str) -> Result<Vec<u8>> {
+    URL_SAFE_NO_PAD
+        .decode(value)
+        .map_err(|error| FatimaError::message(error.to_string()))
+}
+
 pub(crate) fn random_key() -> [u8; 32] {
     let mut key = [0u8; 32];
     OsRng.fill_bytes(&mut key);
@@ -236,5 +267,28 @@ mod tests {
         assert_eq!(first, second);
         assert_ne!(first, other_salt);
         assert_ne!(first, other_password);
+    }
+
+    #[test]
+    fn derive_master_key_rejects_out_of_range_params() {
+        let valid = KdfParams {
+            memory_kib: 1024,
+            iterations: 1,
+            parallelism: 1,
+        };
+        let invalid = [
+            KdfParams { memory_kib: 0, ..valid.clone() },
+            KdfParams { memory_kib: 1_048_577, ..valid.clone() },
+            KdfParams { iterations: 0, ..valid.clone() },
+            KdfParams { iterations: 17, ..valid.clone() },
+            KdfParams { parallelism: 0, ..valid.clone() },
+            KdfParams { parallelism: 17, ..valid.clone() },
+        ];
+        for params in invalid {
+            assert!(matches!(
+                derive_master_key("password", b"0123456789abcdef", &params),
+                Err(FatimaError::InvalidKdfParams)
+            ));
+        }
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
 use crate::{FatimaError, Result};
 
@@ -7,16 +8,24 @@ use super::crypto::{
     decrypt, encrypt, generate_key_pair, open_sealed, random_key, seal_to, derive_encryption_key,
     to_key, Ciphertext, KdfParams, KeyPair,
 };
-use super::legacy::crypto::{decode_b64, encode_b64};
+use super::crypto::{decode_b64, encode_b64};
 use super::types::{AccountRecord, EnvironmentGrant, EnvironmentRecord, UserKeyRecord};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct AccountSecrets {
     pub account_key: [u8; 32],
     pub key_pair: KeyPair,
     pub master_encryption_key: [u8; 32],
     pub kdf_salt: Vec<u8>,
     pub kdf_params: KdfParams,
+}
+
+impl fmt::Debug for AccountSecrets {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AccountSecrets")
+            .finish_non_exhaustive()
+    }
 }
 
 pub(crate) fn new_account_secrets(
@@ -101,21 +110,33 @@ pub(crate) fn grant_environments(
     names
         .iter()
         .map(|name| {
-            if let Some(record) = existing
-                .iter()
-                .find(|record| &record.name == name && !record.grants.is_empty())
-            {
-                return Ok(record.clone());
-            }
             let key = environment_keys.get(name).ok_or_else(|| {
                 FatimaError::message(format!("Missing Fatima environment secret: {name}"))
             })?;
+            if let Some(record) = existing.iter().find(|record| {
+                &record.name == name && grants_environment_key(record, key_pair, key)
+            }) {
+                return Ok(record.clone());
+            }
             Ok(EnvironmentRecord {
                 name: name.clone(),
                 grants: vec![grant_environment_key(key, key_pair)?],
             })
         })
         .collect()
+}
+
+fn grants_environment_key(
+    record: &EnvironmentRecord,
+    key_pair: &KeyPair,
+    environment_key: &[u8; 32],
+) -> bool {
+    let public_key = encode_b64(&key_pair.public);
+    record.grants.iter().any(|grant| {
+        grant.public_key == public_key
+            && open_sealed(&grant.sealed_key, key_pair)
+                .is_ok_and(|opened| opened == environment_key)
+    })
 }
 
 pub(crate) fn unwrap_environment_keys(

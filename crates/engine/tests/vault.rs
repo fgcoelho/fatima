@@ -347,3 +347,54 @@ fn v2_rename_environment_keeps_user_key_access() {
     assert_eq!(secrets["A"], "1");
     assert_eq!(secrets["B"], "2");
 }
+
+#[test]
+fn v2_recreated_environment_survives_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let options = temp_options(&temp);
+    let mut vault = FatimaVault::initialize("secret-password", Some(options.clone())).unwrap();
+    vault.delete_environment("staging").unwrap();
+    vault.create_environment("staging").unwrap();
+    vault.set_secret("staging", "X", "1", None).unwrap();
+    vault.save().unwrap();
+
+    let reopened = FatimaVault::unlock_with_password("secret-password", Some(options)).unwrap();
+
+    assert_eq!(reopened.get_secrets(Some("staging")).unwrap()["X"], "1");
+}
+
+#[test]
+fn v2_renamed_then_recreated_environment_survives_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let options = temp_options(&temp);
+    let mut vault = FatimaVault::initialize("secret-password", Some(options.clone())).unwrap();
+    vault.rename_environment("production", "prod").unwrap();
+    vault.create_environment("production").unwrap();
+    vault.set_secret("prod", "X", "1", None).unwrap();
+    vault.set_secret("production", "Y", "2", None).unwrap();
+    vault.save().unwrap();
+
+    let reopened = FatimaVault::unlock_with_password("secret-password", Some(options)).unwrap();
+
+    assert_eq!(reopened.get_secrets(Some("prod")).unwrap()["X"], "1");
+    assert_eq!(reopened.get_secrets(Some("production")).unwrap()["Y"], "2");
+}
+
+#[test]
+fn v2_out_of_range_kdf_params_are_rejected() {
+    let temp = tempfile::tempdir().unwrap();
+    let options = temp_options(&temp);
+    let mut vault = FatimaVault::initialize("secret-password", Some(options.clone())).unwrap();
+    vault.save().unwrap();
+    let mut store = read_vault_json(&temp);
+    store["kdf"]["memoryKib"] = json!(4194304);
+    std::fs::write(
+        temp.path().join(".fatima/vault.json"),
+        serde_json::to_string_pretty(&store).unwrap(),
+    )
+    .unwrap();
+
+    let error = FatimaVault::unlock_with_password("secret-password", Some(options)).unwrap_err();
+
+    assert!(matches!(error, FatimaError::InvalidKdfParams));
+}

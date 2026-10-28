@@ -1,12 +1,10 @@
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
-use rand::{rngs::OsRng, RngCore};
 use scrypt::{scrypt, Params};
 
 use crate::{FatimaError, Result};
 
+use crate::vault::crypto::{decode_b64, encode_b64, random_bytes};
 use crate::vault::types::KEY_LENGTH;
 
 use super::EncryptedBlob;
@@ -46,27 +44,7 @@ pub(crate) fn derive_key(secret: &str, salt: &str) -> Result<Vec<u8>> {
     Ok(key)
 }
 
-pub(crate) fn random_bytes(length: usize) -> Vec<u8> {
-    let mut bytes = vec![0; length];
-    OsRng.fill_bytes(&mut bytes);
-    bytes
-}
-
-pub(crate) fn random_b64(length: usize) -> String {
-    encode_b64(&random_bytes(length))
-}
-
 fn cipher(key: &[u8]) -> Result<Aes256Gcm> {
     Aes256Gcm::new_from_slice(key)
         .map_err(|_| FatimaError::message("Invalid Fatima vault encryption key."))
-}
-
-pub(crate) fn encode_b64(value: &[u8]) -> String {
-    URL_SAFE_NO_PAD.encode(value)
-}
-
-pub(crate) fn decode_b64(value: &str) -> Result<Vec<u8>> {
-    URL_SAFE_NO_PAD
-        .decode(value)
-        .map_err(|error| FatimaError::message(error.to_string()))
 }

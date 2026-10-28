@@ -13,11 +13,10 @@ use super::account::{
 };
 use super::associated_data::{self, Field};
 use super::crypto::{
-    decrypt, derive_master_key, encrypt, random_key, derive_encryption_key, Ciphertext,
-    KdfParams,
+    decode_b64, decrypt, derive_encryption_key, derive_master_key, encode_b64, encrypt,
+    random_bytes, random_key, Ciphertext, KdfParams,
 };
 use super::domain::assert_non_empty_password;
-use super::legacy::crypto::{decode_b64, encode_b64, random_bytes};
 use super::types::{
     ProjectSecretManagerSettings, ProjectStore, ResolvedSettings, SecretRecord, StoreFiles,
     StoredProjectConfig, StoredSecretRecord, StoredUserSecretRecord, StoredVaultData,

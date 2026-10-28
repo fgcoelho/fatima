@@ -1,9 +1,8 @@
 use crate::Result;
 
-use super::crypto::{derive_encryption_key, derive_master_key};
+use super::crypto::{derive_encryption_key, derive_master_key, random_bytes};
 use super::domain::assert_non_empty_password;
 use super::handle::FatimaVault;
-use super::legacy::crypto::random_bytes;
 
 impl FatimaVault {
     pub fn change_password(&mut self, password: &str) -> Result<()> {
