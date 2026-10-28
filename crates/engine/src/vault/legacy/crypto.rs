@@ -32,7 +32,7 @@ pub(crate) fn decrypt_bytes(value: &EncryptedBlob, key: &[u8]) -> Result<Vec<u8>
             Nonce::from_slice(&decode_b64(&value.iv)?),
             encrypted.as_slice(),
         )
-        .map_err(|_| FatimaError::message("Failed to decrypt Fatima vault data."))
+        .map_err(|_| FatimaError::Decrypt)
 }
 
 pub(crate) fn derive_key(secret: &str, salt: &str) -> Result<Vec<u8>> {

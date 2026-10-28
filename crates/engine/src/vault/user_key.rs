@@ -9,10 +9,11 @@ use super::crypto::{
     decrypt, derive_user_key, encode_b64, encrypt, random_b64, random_key, to_key,
 };
 use super::domain::{assert_environment, to_environment_map};
-use super::store::{decrypt_environment_value, environment_names, read_store};
+use super::legacy;
+use super::store::{decrypt_environment_value, read_store};
 use super::types::{
-    GeneratedUserKey, UserKeyRecord, VaultOptions, WrappedUserEnvironmentSecret,
-    USER_KEY_ID_LENGTH, USER_KEY_PREFIX,
+    GeneratedUserKey, SecretRecord, StoredVaultFile, UserKeyRecord, UserKeyScheme, VaultFile,
+    VaultOptions, WrappedKey, WrappedUserEnvironmentSecret, USER_KEY_ID_LENGTH, USER_KEY_PREFIX,
 };
 
 pub(crate) fn list_secrets_with_user_key(
@@ -21,23 +22,52 @@ pub(crate) fn list_secrets_with_user_key(
     options: Option<&VaultOptions>,
 ) -> Result<Secrets> {
     let auth = authenticate_user_key(raw_key, options)?;
-    let store = auth.store;
-    let environment_secrets = auth.environment_secrets;
-    let project_id = &store.file.project_id;
-    let environment = environment.unwrap_or(&store.file.default_environment);
-    let all_environments = environment_names(&store.file);
-    if !all_environments.iter().any(|value| value == environment) {
+    let environment = environment.unwrap_or_else(|| auth.store.file.default_environment());
+    if !auth
+        .store
+        .file
+        .environment_names()
+        .iter()
+        .any(|value| value == environment)
+    {
         return Err(FatimaError::message(format!(
             "Unknown Fatima environment: {environment}"
         )));
     }
-    let Some(environment_secret) = environment_secrets.get(environment) else {
+    let Some(environment_secret) = auth.environment_secrets.get(environment) else {
         return Err(FatimaError::message(format!(
             "Fatima user key cannot access environment: {environment}"
         )));
     };
-    let mut secrets = Vec::new();
-    for stored in &store.file.secrets {
+    let user = auth
+        .user_environment_secrets
+        .get(environment)
+        .map(|secret| (auth.user_key_id.as_str(), secret));
+    let (mut secrets, user_secrets) = match &auth.store.file {
+        VaultFile::V1(file) => legacy::user_key_secrets(file, environment, environment_secret, user)?,
+        VaultFile::V2(file) => v2_user_key_secrets(file, environment, environment_secret, user)?,
+    };
+    for secret in user_secrets {
+        if secrets.iter().any(|shared| shared.key == secret.key) {
+            return Err(FatimaError::message(format!(
+                "Fatima user secret `{}` conflicts with a shared secret.",
+                secret.key
+            )));
+        }
+        secrets.push(secret);
+    }
+    Ok(to_environment_map(&secrets, environment))
+}
+
+fn v2_user_key_secrets(
+    file: &StoredVaultFile,
+    environment: &str,
+    environment_secret: &[u8; 32],
+    user: Option<(&str, &[u8; 32])>,
+) -> Result<(Vec<SecretRecord>, Vec<SecretRecord>)> {
+    let project_id = &file.project_id;
+    let mut shared = Vec::new();
+    for stored in &file.secrets {
         let Some(encrypted) = stored.values.get(environment) else {
             continue;
         };
@@ -45,24 +75,32 @@ pub(crate) fn list_secrets_with_user_key(
             .keys
             .get(environment)
             .ok_or_else(|| FatimaError::message("Missing encrypted Fatima secret key."))?;
-        let value = decrypt_environment_value(
-            encrypted,
-            environment_secret,
-            &associated_data::secret_field(project_id, environment, &stored.id, Field::Value),
-        )?;
-        secrets.push(super::types::SecretRecord {
+        shared.push(SecretRecord {
             id: stored.id.clone(),
             key: decrypt_environment_value(
                 encrypted_key,
                 environment_secret,
                 &associated_data::secret_field(project_id, environment, &stored.id, Field::Name),
             )?,
-            values: BTreeMap::from([(environment.to_string(), value)]),
+            values: BTreeMap::from([(
+                environment.to_string(),
+                decrypt_environment_value(
+                    encrypted,
+                    environment_secret,
+                    &associated_data::secret_field(
+                        project_id,
+                        environment,
+                        &stored.id,
+                        Field::Value,
+                    ),
+                )?,
+            )]),
         });
     }
-    if let Some(user_environment_secret) = auth.user_environment_secrets.get(environment) {
-        for stored in &store.file.user_secrets {
-            if stored.owner_user_key_id != auth.user_key_id {
+    let mut own = Vec::new();
+    if let Some((user_key_id, user_environment_secret)) = user {
+        for stored in &file.user_secrets {
+            if stored.owner_user_key_id != user_key_id {
                 continue;
             }
             let Some(encrypted) = stored.values.get(environment) else {
@@ -72,25 +110,19 @@ pub(crate) fn list_secrets_with_user_key(
                 .keys
                 .get(environment)
                 .ok_or_else(|| FatimaError::message("Missing encrypted Fatima user secret key."))?;
-            let key = decrypt_environment_value(
-                encrypted_key,
-                user_environment_secret,
-                &associated_data::user_secret_field(
-                    project_id,
-                    environment,
-                    &auth.user_key_id,
-                    &stored.id,
-                    Field::Name,
-                ),
-            )?;
-            if secrets.iter().any(|secret| secret.key == key) {
-                return Err(FatimaError::message(format!(
-                    "Fatima user secret `{key}` conflicts with a shared secret."
-                )));
-            }
-            secrets.push(super::types::SecretRecord {
+            own.push(SecretRecord {
                 id: stored.id.clone(),
-                key,
+                key: decrypt_environment_value(
+                    encrypted_key,
+                    user_environment_secret,
+                    &associated_data::user_secret_field(
+                        project_id,
+                        environment,
+                        user_key_id,
+                        &stored.id,
+                        Field::Name,
+                    ),
+                )?,
                 values: BTreeMap::from([(
                     environment.to_string(),
                     decrypt_environment_value(
@@ -99,7 +131,7 @@ pub(crate) fn list_secrets_with_user_key(
                         &associated_data::user_secret_field(
                             project_id,
                             environment,
-                            &auth.user_key_id,
+                            user_key_id,
                             &stored.id,
                             Field::Value,
                         ),
@@ -108,7 +140,7 @@ pub(crate) fn list_secrets_with_user_key(
             });
         }
     }
-    Ok(to_environment_map(&secrets, environment))
+    Ok((shared, own))
 }
 
 pub(crate) struct AuthenticatedUserKey {
@@ -125,13 +157,74 @@ pub(crate) fn authenticate_user_key(
 ) -> Result<AuthenticatedUserKey> {
     let store = read_store(options)?;
     let (id, secret) = parse_raw_user_key(raw_key)?;
-    let record = store
-        .file
-        .user_keys
+    let not_found = || FatimaError::message("Fatima user key not found.");
+    let (environment_secrets, user_environment_secrets) = match &store.file {
+        VaultFile::V1(file) => {
+            let record = file
+                .user_keys
+                .iter()
+                .find(|record| record.id == id)
+                .ok_or_else(not_found)?;
+            legacy::authenticate_user_key(
+                &secret,
+                &record.salt,
+                &record.secret_hash,
+                &record.wrapped_environment_secrets,
+                record
+                    .wrapped_user_environment_secrets
+                    .iter()
+                    .map(|(environment, wrapped)| (environment, &wrapped.by_user_key)),
+            )?
+        }
+        VaultFile::V2(file) => {
+            let record = file
+                .user_keys
+                .iter()
+                .find(|record| record.id == id)
+                .ok_or_else(not_found)?;
+            match record.scheme {
+                UserKeyScheme::V1 => authenticate_v1_scheme(record, &secret)?,
+                UserKeyScheme::V2 => authenticate_v2_scheme(record, &file.project_id, &secret)?,
+            }
+        }
+    };
+    Ok(AuthenticatedUserKey {
+        store,
+        user_key_id: id,
+        environments: environment_secrets.keys().cloned().collect(),
+        environment_secrets,
+        user_environment_secrets,
+    })
+}
+
+type UserKeySecrets = (BTreeMap<String, [u8; 32]>, BTreeMap<String, [u8; 32]>);
+
+fn authenticate_v1_scheme(record: &UserKeyRecord, secret: &str) -> Result<UserKeySecrets> {
+    let salt = record.salt.as_deref().ok_or(FatimaError::Decrypt)?;
+    let environments = record
+        .wrapped_environment_secrets
         .iter()
-        .find(|record| record.id == id)
-        .ok_or_else(|| FatimaError::message("Fatima user key not found."))?;
-    let project_id = &store.file.project_id;
+        .map(|(environment, wrapped)| -> Result<_> { Ok((environment, wrapped.v1()?)) })
+        .collect::<Result<Vec<_>>>()?;
+    let user_environments = record
+        .wrapped_user_environment_secrets
+        .iter()
+        .map(|(environment, wrapped)| -> Result<_> { Ok((environment, wrapped.by_user_key.v1()?)) })
+        .collect::<Result<Vec<_>>>()?;
+    legacy::authenticate_user_key(
+        secret,
+        salt,
+        &record.secret_hash,
+        environments,
+        user_environments,
+    )
+}
+
+fn authenticate_v2_scheme(
+    record: &UserKeyRecord,
+    project_id: &str,
+    secret: &str,
+) -> Result<UserKeySecrets> {
     let keys = derive_user_key(secret.as_bytes())?;
     if encode_b64(&keys.hash) != record.secret_hash {
         return Err(FatimaError::message("Invalid Fatima user key."));
@@ -141,9 +234,9 @@ pub(crate) fn authenticate_user_key(
         environment_secrets.insert(
             environment.clone(),
             to_key(&decrypt(
-                wrapped,
+                wrapped.v2()?,
                 &keys.wrapping,
-                &associated_data::user_key_environment(project_id, &id),
+                &associated_data::user_key_environment(project_id, &record.id),
             )?)?,
         );
     }
@@ -152,20 +245,14 @@ pub(crate) fn authenticate_user_key(
         user_environment_secrets.insert(
             environment.clone(),
             unwrap_user_environment_key(
-                &wrapped.by_user_key,
+                wrapped.by_user_key.v2()?,
                 &keys.wrapping,
                 project_id,
-                &id,
+                &record.id,
             )?,
         );
     }
-    Ok(AuthenticatedUserKey {
-        store,
-        user_key_id: id,
-        environments: environment_secrets.keys().cloned().collect(),
-        environment_secrets,
-        user_environment_secrets,
-    })
+    Ok((environment_secrets, user_environment_secrets))
 }
 
 pub(crate) fn create_user_key_record(
@@ -185,11 +272,11 @@ pub(crate) fn create_user_key_record(
         })?;
         wrapped_environment_secrets.insert(
             environment.clone(),
-            encrypt(
+            WrappedKey::V2(encrypt(
                 environment_secret,
                 &keys.wrapping,
                 &associated_data::user_key_environment(project_id, &id),
-            )?,
+            )?),
         );
         let user_environment_secret = random_key();
         let user_environment_data = associated_data::user_environment(project_id, &id);
@@ -201,18 +288,19 @@ pub(crate) fn create_user_key_record(
                     account_key,
                     &user_environment_data,
                 )?,
-                by_user_key: encrypt(
+                by_user_key: WrappedKey::V2(encrypt(
                     &user_environment_secret,
                     &keys.wrapping,
                     &user_environment_data,
-                )?,
+                )?),
             },
         );
     }
     let record = UserKeyRecord {
         id,
         name: name.to_string(),
-        scheme: "v2".to_string(),
+        scheme: UserKeyScheme::V2,
+        salt: None,
         secret_hash: encode_b64(&keys.hash),
         wrapped_environment_secrets,
         wrapped_user_environment_secrets,

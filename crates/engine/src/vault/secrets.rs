@@ -7,7 +7,8 @@ use crate::{FatimaError, Result};
 use super::associated_data::{self, Field};
 use super::domain::{assert_environment, to_environment_map};
 use super::store::{decrypt_environment_value, encrypt_environment_value, read_store, write_store};
-use super::types::{FatimaVaultSession, SecretRecord};
+use super::legacy;
+use super::types::{FatimaVaultSession, SecretRecord, StoredVaultFile, VaultFile};
 use super::user_key::list_secrets_with_user_key;
 use super::handle::FatimaVault;
 
@@ -184,69 +185,96 @@ impl FatimaVault {
             return Err(FatimaError::message("Secret key cannot be empty."));
         }
         let mut store = read_store(Some(&self.options))?;
-        let project_id = store.file.project_id.clone();
-        let field_data = |secret_id: &str, field: Field| {
-            associated_data::user_secret_field(
-                &project_id,
-                environment,
+        match &mut store.file {
+            VaultFile::V1(file) => legacy::set_user_secret(
+                file,
                 &user_key_id,
-                secret_id,
-                field,
-            )
-        };
-        let mut existing_index = None;
-        for (index, secret) in store.file.user_secrets.iter().enumerate() {
-            if secret.owner_user_key_id != user_key_id {
-                continue;
-            }
-            let Some(encrypted_existing_key) = secret.keys.get(environment) else {
-                continue;
-            };
-            let existing_key = decrypt_environment_value(
-                encrypted_existing_key,
                 &user_environment_secret,
-                &field_data(&secret.id, Field::Name),
-            )?;
-            if existing_key == key {
-                existing_index = Some(index);
-                break;
-            }
-        }
-        let secret_id = match existing_index {
-            Some(index) => store.file.user_secrets[index].id.clone(),
-            None => uuid::Uuid::new_v4().to_string(),
-        };
-        let encrypted_key = encrypt_environment_value(
-            key,
-            &user_environment_secret,
-            &field_data(&secret_id, Field::Name),
-        )?;
-        let encrypted_value = encrypt_environment_value(
-            value,
-            &user_environment_secret,
-            &field_data(&secret_id, Field::Value),
-        )?;
-        if let Some(index) = existing_index {
-            let secret = &mut store.file.user_secrets[index];
-            secret.keys.insert(environment.to_string(), encrypted_key);
-            secret
-                .values
-                .insert(environment.to_string(), encrypted_value);
-        } else {
-            let mut keys = std::collections::BTreeMap::new();
-            keys.insert(environment.to_string(), encrypted_key);
-            let mut values = std::collections::BTreeMap::new();
-            values.insert(environment.to_string(), encrypted_value);
-            store
-                .file
-                .user_secrets
-                .push(super::types::StoredUserSecretRecord {
-                    id: secret_id,
-                    owner_user_key_id: user_key_id,
-                    keys,
-                    values,
-                });
+                environment,
+                key,
+                value,
+            )?,
+            VaultFile::V2(file) => set_v2_user_secret(
+                file,
+                &user_key_id,
+                &user_environment_secret,
+                environment,
+                key,
+                value,
+            )?,
         }
         write_store(&store)
     }
+}
+
+fn set_v2_user_secret(
+    file: &mut StoredVaultFile,
+    user_key_id: &str,
+    user_environment_secret: &[u8; 32],
+    environment: &str,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let project_id = file.project_id.clone();
+    let field_data = |secret_id: &str, field: Field| {
+        associated_data::user_secret_field(
+            &project_id,
+            environment,
+            user_key_id,
+            secret_id,
+            field,
+        )
+    };
+    let mut existing_index = None;
+    for (index, secret) in file.user_secrets.iter().enumerate() {
+        if secret.owner_user_key_id != user_key_id {
+            continue;
+        }
+        let Some(encrypted_existing_key) = secret.keys.get(environment) else {
+            continue;
+        };
+        let existing_key = decrypt_environment_value(
+            encrypted_existing_key,
+            user_environment_secret,
+            &field_data(&secret.id, Field::Name),
+        )?;
+        if existing_key == key {
+            existing_index = Some(index);
+            break;
+        }
+    }
+    let secret_id = match existing_index {
+        Some(index) => file.user_secrets[index].id.clone(),
+        None => uuid::Uuid::new_v4().to_string(),
+    };
+    let encrypted_key = encrypt_environment_value(
+        key,
+        user_environment_secret,
+        &field_data(&secret_id, Field::Name),
+    )?;
+    let encrypted_value = encrypt_environment_value(
+        value,
+        user_environment_secret,
+        &field_data(&secret_id, Field::Value),
+    )?;
+    if let Some(index) = existing_index {
+        let secret = &mut file.user_secrets[index];
+        secret.keys.insert(environment.to_string(), encrypted_key);
+        secret
+            .values
+            .insert(environment.to_string(), encrypted_value);
+    } else {
+        let mut keys = std::collections::BTreeMap::new();
+        keys.insert(environment.to_string(), encrypted_key);
+        let mut values = std::collections::BTreeMap::new();
+        values.insert(environment.to_string(), encrypted_value);
+        file.user_secrets
+            .push(super::types::StoredUserSecretRecord {
+                id: secret_id,
+                owner_user_key_id: user_key_id.to_string(),
+                keys,
+                values,
+            });
+    }
+    Ok(())
 }

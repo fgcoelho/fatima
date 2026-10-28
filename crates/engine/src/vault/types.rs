@@ -3,7 +3,10 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::{FatimaError, Result};
+
 use super::crypto::{Ciphertext, KdfParams, KeyPair};
+use super::legacy::{self, EncryptedBlob};
 
 pub(crate) const DEFAULT_STORE_PATH: &str = ".fatima";
 pub(crate) const VAULT_FILE_NAME: &str = "vault.json";
@@ -107,11 +110,42 @@ pub struct StoredUserSecretRecord {
     pub values: BTreeMap<String, Ciphertext>,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UserKeyScheme {
+    #[default]
+    V1,
+    V2,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum WrappedKey {
+    V2(Ciphertext),
+    V1(EncryptedBlob),
+}
+
+impl WrappedKey {
+    pub(crate) fn v2(&self) -> Result<&Ciphertext> {
+        match self {
+            WrappedKey::V2(ciphertext) => Ok(ciphertext),
+            WrappedKey::V1(_) => Err(FatimaError::Decrypt),
+        }
+    }
+
+    pub(crate) fn v1(&self) -> Result<&EncryptedBlob> {
+        match self {
+            WrappedKey::V1(blob) => Ok(blob),
+            WrappedKey::V2(_) => Err(FatimaError::Decrypt),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WrappedUserEnvironmentSecret {
     pub by_account_key: Ciphertext,
-    pub by_user_key: Ciphertext,
+    pub by_user_key: WrappedKey,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -119,10 +153,13 @@ pub struct WrappedUserEnvironmentSecret {
 pub struct UserKeyRecord {
     pub id: String,
     pub name: String,
-    pub scheme: String,
+    #[serde(default)]
+    pub scheme: UserKeyScheme,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub salt: Option<String>,
     pub secret_hash: String,
     #[serde(default)]
-    pub wrapped_environment_secrets: BTreeMap<String, Ciphertext>,
+    pub wrapped_environment_secrets: BTreeMap<String, WrappedKey>,
     #[serde(default)]
     pub wrapped_user_environment_secrets: BTreeMap<String, WrappedUserEnvironmentSecret>,
 }
@@ -213,7 +250,38 @@ pub(crate) struct UnlockedVault {
 
 pub(crate) struct ProjectStore {
     pub project: ResolvedSettings,
-    pub file: StoredVaultFile,
+    pub file: VaultFile,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+pub(crate) enum VaultFile {
+    V1(legacy::StoredVaultFile),
+    V2(StoredVaultFile),
+}
+
+impl VaultFile {
+    pub fn default_environment(&self) -> &str {
+        match self {
+            VaultFile::V1(file) => &file.default_environment,
+            VaultFile::V2(file) => &file.default_environment,
+        }
+    }
+
+    pub fn environment_names(&self) -> Vec<String> {
+        match self {
+            VaultFile::V1(file) => file
+                .environments
+                .iter()
+                .map(|environment| environment.name.clone())
+                .collect(),
+            VaultFile::V2(file) => file
+                .environments
+                .iter()
+                .map(|environment| environment.name.clone())
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone)]

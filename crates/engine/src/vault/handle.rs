@@ -112,7 +112,10 @@ impl FatimaVault {
         match self.require_session()? {
             FatimaVaultSession::Password(unlocked) => Ok(unlocked.data.default_environment.clone()),
             FatimaVaultSession::UserKey { .. } => {
-                Ok(read_store(Some(&self.options))?.file.default_environment)
+                Ok(read_store(Some(&self.options))?
+                    .file
+                    .default_environment()
+                    .to_string())
             }
         }
     }

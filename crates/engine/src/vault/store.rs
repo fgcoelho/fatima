@@ -17,11 +17,13 @@ use super::crypto::{
     random_bytes, random_key, Ciphertext, KdfParams,
 };
 use super::domain::assert_non_empty_password;
+use super::legacy;
 use super::types::{
     ProjectSecretManagerSettings, ProjectStore, ResolvedSettings, SecretRecord, StoreFiles,
     StoredProjectConfig, StoredSecretRecord, StoredUserSecretRecord, StoredVaultData,
-    StoredVaultFile, UserSecretRecord, VaultEncryption, VaultKdf, VaultOptions,
-    DEFAULT_ENVIRONMENTS, DEFAULT_STORE_PATH,
+    StoredVaultFile, UserKeyRecord, UserKeyScheme, UserSecretRecord, VaultEncryption, VaultFile,
+    VaultKdf, VaultOptions, WrappedKey, WrappedUserEnvironmentSecret, DEFAULT_ENVIRONMENTS,
+    DEFAULT_STORE_PATH,
 };
 
 const KDF_SALT_LENGTH: usize = 16;
@@ -35,13 +37,8 @@ pub(crate) fn has_store(options: Option<&VaultOptions>) -> bool {
 pub(crate) fn get_settings(options: Option<&VaultOptions>) -> Result<ProjectSecretManagerSettings> {
     let store = read_store(options)?;
     Ok(ProjectSecretManagerSettings {
-        default_environment: store.file.default_environment,
-        environments: store
-            .file
-            .environments
-            .iter()
-            .map(|environment| environment.name.clone())
-            .collect(),
+        default_environment: store.file.default_environment().to_string(),
+        environments: store.file.environment_names(),
         store_path: resolve_settings(options).store_path.display().to_string(),
     })
 }
@@ -156,15 +153,12 @@ pub(crate) fn read_store(options: Option<&VaultOptions>) -> Result<ProjectStore>
         source,
     })?;
     let probe: VersionProbe = parse_json(&content, "Fatima vault")?;
-    if probe.version != VAULT_VERSION {
-        return Err(FatimaError::UnsupportedVaultVersion {
-            version: probe.version,
-        });
-    }
-    Ok(ProjectStore {
-        project,
-        file: parse_json(&content, "Fatima vault")?,
-    })
+    let file = match probe.version {
+        1 => VaultFile::V1(parse_json(&content, "Fatima vault")?),
+        VAULT_VERSION => VaultFile::V2(parse_json(&content, "Fatima vault")?),
+        version => return Err(FatimaError::UnsupportedVaultVersion { version }),
+    };
+    Ok(ProjectStore { project, file })
 }
 
 pub(crate) fn write_store(store: &ProjectStore) -> Result<()> {
@@ -176,31 +170,133 @@ pub(crate) fn unlock_store(
     options: Option<&VaultOptions>,
 ) -> Result<super::types::UnlockedVault> {
     let store = read_store(options)?;
-    let kdf_salt = decode_b64(&store.file.kdf.salt)?;
-    let kdf_params = store.file.kdf.params.clone();
+    match store.file {
+        VaultFile::V1(file) => upgrade_v1(store.project, file, password),
+        VaultFile::V2(file) => unlock_v2(store.project, file, password),
+    }
+}
+
+fn unlock_v2(
+    project: ResolvedSettings,
+    file: StoredVaultFile,
+    password: &str,
+) -> Result<super::types::UnlockedVault> {
+    let kdf_salt = decode_b64(&file.kdf.salt)?;
+    let kdf_params = file.kdf.params.clone();
     let master_key = derive_master_key(password, &kdf_salt, &kdf_params)?;
     let account = unwrap_account(
-        &store.file.account,
-        &store.file.project_id,
+        &file.account,
+        &file.project_id,
         derive_encryption_key(&master_key)?,
         kdf_salt,
         kdf_params,
     )?;
-    let environment_secrets = unwrap_environment_keys(&store.file.environments, &account.key_pair)?;
-    let user_environment_secrets = unwrap_user_environment_keys(
-        &store.file.user_keys,
-        &store.file.project_id,
-        &account.account_key,
-    )?;
-    let data = decrypt_data(&store.file, &environment_secrets, &user_environment_secrets)?;
+    let environment_secrets = unwrap_environment_keys(&file.environments, &account.key_pair)?;
+    let user_environment_secrets =
+        unwrap_user_environment_keys(&file.user_keys, &file.project_id, &account.account_key)?;
+    let data = decrypt_data(&file, &environment_secrets, &user_environment_secrets)?;
     Ok(unlocked(
-        store.project,
-        store.file,
+        project,
+        file,
         data,
         environment_secrets,
         user_environment_secrets,
         account,
     ))
+}
+
+fn upgrade_v1(
+    project: ResolvedSettings,
+    file: legacy::StoredVaultFile,
+    password: &str,
+) -> Result<super::types::UnlockedVault> {
+    let opened = legacy::open(&file, password)?;
+    let kdf_salt = random_bytes(KDF_SALT_LENGTH);
+    let kdf_params = KdfParams::default();
+    let master_key = derive_master_key(password, &kdf_salt, &kdf_params)?;
+    let account = new_account_secrets(&master_key, kdf_salt, kdf_params)?;
+    let project_id = uuid::Uuid::new_v4().to_string();
+    let user_keys = file
+        .user_keys
+        .iter()
+        .map(|record| {
+            upgrade_user_key(
+                record,
+                &project_id,
+                &account.account_key,
+                &opened.user_environment_secrets,
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let upgraded = StoredVaultFile {
+        version: VAULT_VERSION,
+        project_id: project_id.clone(),
+        mode: file.mode,
+        created_at: file.created_at,
+        updated_at: file.updated_at,
+        default_environment: file.default_environment,
+        kdf: stored_kdf(&account),
+        encryption: VaultEncryption {
+            algorithm: "xchacha20-poly1305".to_string(),
+        },
+        account: wrap_account(&project_id, &account)?,
+        environments: grant_environments(
+            &opened.data.environments,
+            &opened.environment_secrets,
+            &[],
+            &account.key_pair,
+        )?,
+        user_keys,
+        secrets: Vec::new(),
+        user_secrets: Vec::new(),
+    };
+    Ok(unlocked(
+        project,
+        upgraded,
+        opened.data,
+        opened.environment_secrets,
+        opened.user_environment_secrets,
+        account,
+    ))
+}
+
+fn upgrade_user_key(
+    record: &legacy::UserKeyRecord,
+    project_id: &str,
+    account_key: &[u8; 32],
+    user_environment_secrets: &BTreeMap<String, BTreeMap<String, [u8; 32]>>,
+) -> Result<UserKeyRecord> {
+    let mut wrapped_user_environment_secrets = BTreeMap::new();
+    for (environment, wrapped) in &record.wrapped_user_environment_secrets {
+        let secret = user_environment_secrets
+            .get(&record.id)
+            .and_then(|items| items.get(environment))
+            .ok_or(FatimaError::Decrypt)?;
+        wrapped_user_environment_secrets.insert(
+            environment.clone(),
+            WrappedUserEnvironmentSecret {
+                by_account_key: encrypt(
+                    secret,
+                    account_key,
+                    &associated_data::user_environment(project_id, &record.id),
+                )?,
+                by_user_key: WrappedKey::V1(wrapped.by_user_key.clone()),
+            },
+        );
+    }
+    Ok(UserKeyRecord {
+        id: record.id.clone(),
+        name: record.name.clone(),
+        scheme: UserKeyScheme::V1,
+        salt: Some(record.salt.clone()),
+        secret_hash: record.secret_hash.clone(),
+        wrapped_environment_secrets: record
+            .wrapped_environment_secrets
+            .iter()
+            .map(|(environment, blob)| (environment.clone(), WrappedKey::V1(blob.clone())))
+            .collect(),
+        wrapped_user_environment_secrets,
+    })
 }
 
 pub(crate) fn save_unlocked(unlocked: &mut super::types::UnlockedVault) -> Result<()> {
