@@ -171,21 +171,26 @@ pub(crate) fn open(file: &StoredVaultFile, password: &str) -> Result<Opened> {
     })
 }
 
+pub(crate) struct UserKeySecrets {
+    pub environment_secrets: BTreeMap<String, [u8; 32]>,
+    pub user_environment_secrets: BTreeMap<String, [u8; 32]>,
+}
+
 pub(crate) fn authenticate_user_key<'a>(
     secret: &str,
     salt: &str,
     secret_hash: &str,
     environments: impl IntoIterator<Item = (&'a String, &'a EncryptedBlob)>,
     user_environments: impl IntoIterator<Item = (&'a String, &'a EncryptedBlob)>,
-) -> Result<(BTreeMap<String, [u8; 32]>, BTreeMap<String, [u8; 32]>)> {
+) -> Result<UserKeySecrets> {
     let user_key = crypto::derive_key(secret, salt)?;
     if crate::vault::crypto::encode_b64(&user_key) != secret_hash {
         return Err(FatimaError::message("Invalid Fatima user key."));
     }
-    Ok((
-        unwrap_all(environments, &user_key)?,
-        unwrap_all(user_environments, &user_key)?,
-    ))
+    Ok(UserKeySecrets {
+        environment_secrets: unwrap_all(environments, &user_key)?,
+        user_environment_secrets: unwrap_all(user_environments, &user_key)?,
+    })
 }
 
 fn unwrap_all<'a>(

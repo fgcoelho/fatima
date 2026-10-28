@@ -158,7 +158,7 @@ pub(crate) fn authenticate_user_key(
     let store = read_store(options)?;
     let (id, secret) = parse_raw_user_key(raw_key)?;
     let not_found = || FatimaError::message("Fatima user key not found.");
-    let (environment_secrets, user_environment_secrets) = match &store.file {
+    let secrets = match &store.file {
         VaultFile::V1(file) => {
             let record = file
                 .user_keys
@@ -191,15 +191,13 @@ pub(crate) fn authenticate_user_key(
     Ok(AuthenticatedUserKey {
         store,
         user_key_id: id,
-        environments: environment_secrets.keys().cloned().collect(),
-        environment_secrets,
-        user_environment_secrets,
+        environments: secrets.environment_secrets.keys().cloned().collect(),
+        environment_secrets: secrets.environment_secrets,
+        user_environment_secrets: secrets.user_environment_secrets,
     })
 }
 
-type UserKeySecrets = (BTreeMap<String, [u8; 32]>, BTreeMap<String, [u8; 32]>);
-
-fn authenticate_v1_scheme(record: &UserKeyRecord, secret: &str) -> Result<UserKeySecrets> {
+fn authenticate_v1_scheme(record: &UserKeyRecord, secret: &str) -> Result<legacy::UserKeySecrets> {
     let salt = record.salt.as_deref().ok_or(FatimaError::Decrypt)?;
     let environments = record
         .wrapped_environment_secrets
@@ -224,7 +222,7 @@ fn authenticate_v2_scheme(
     record: &UserKeyRecord,
     project_id: &str,
     secret: &str,
-) -> Result<UserKeySecrets> {
+) -> Result<legacy::UserKeySecrets> {
     let keys = derive_user_key(secret.as_bytes())?;
     if encode_b64(&keys.hash) != record.secret_hash {
         return Err(FatimaError::message("Invalid Fatima user key."));
@@ -252,7 +250,10 @@ fn authenticate_v2_scheme(
             )?,
         );
     }
-    Ok((environment_secrets, user_environment_secrets))
+    Ok(legacy::UserKeySecrets {
+        environment_secrets,
+        user_environment_secrets,
+    })
 }
 
 pub(crate) fn create_user_key_record(
