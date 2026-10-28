@@ -323,3 +323,27 @@ fn v2_change_password_rewraps_only_the_account_key() {
         after["account"]["wrappedAccountKey"]
     );
 }
+
+#[test]
+fn v2_rename_environment_keeps_user_key_access() {
+    let temp = tempfile::tempdir().unwrap();
+    let options = temp_options(&temp);
+    let mut vault = FatimaVault::initialize("secret-password", Some(options.clone())).unwrap();
+    vault.set_secret("development", "A", "1", None).unwrap();
+    let generated = vault
+        .generate_user_key("ci", vec!["development".to_string()])
+        .unwrap();
+    vault.save().unwrap();
+    let mut keyed =
+        FatimaVault::authenticate_with_user_key(&generated.key, Some(options.clone())).unwrap();
+    keyed.set_user_secret("development", "B", "2").unwrap();
+
+    let mut vault = FatimaVault::unlock_with_password("secret-password", Some(options.clone())).unwrap();
+    vault.rename_environment("development", "dev").unwrap();
+    vault.save().unwrap();
+
+    let keyed = FatimaVault::authenticate_with_user_key(&generated.key, Some(options)).unwrap();
+    let secrets = keyed.get_secrets(Some("dev")).unwrap();
+    assert_eq!(secrets["A"], "1");
+    assert_eq!(secrets["B"], "2");
+}

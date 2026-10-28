@@ -13,7 +13,7 @@ use super::account::{
 };
 use super::associated_data::{self, Field};
 use super::crypto::{
-    decrypt, derive_master_key, encrypt, random_key, split_master_key, Ciphertext,
+    decrypt, derive_master_key, encrypt, random_key, derive_encryption_key, Ciphertext,
     KdfParams,
 };
 use super::domain::assert_non_empty_password;
@@ -183,7 +183,7 @@ pub(crate) fn unlock_store(
     let account = unwrap_account(
         &store.file.account,
         &store.file.project_id,
-        split_master_key(&master_key)?.encryption,
+        derive_encryption_key(&master_key)?,
         kdf_salt,
         kdf_params,
     )?;

@@ -38,7 +38,6 @@ impl FatimaVault {
                 &unlocked.account_key,
                 &unlocked.project_id,
                 &generated.record.id,
-                environment,
             )?;
             unlocked
                 .user_environment_secrets

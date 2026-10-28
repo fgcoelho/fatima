@@ -170,7 +170,7 @@ impl FatimaVault {
                         "Fatima user key cannot access environment: {environment}"
                     ))
                 })?;
-                (user_key_id.clone(), secret.clone())
+                (user_key_id.clone(), *secret)
             }
             FatimaVaultSession::Password(_) => {
                 return Err(FatimaError::message(

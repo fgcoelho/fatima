@@ -15,7 +15,6 @@ use super::legacy::crypto::{decode_b64, encode_b64};
 
 const NONCE_LENGTH: usize = 24;
 const ENCRYPTION_INFO: &[u8] = b"fatima/v2/encryption";
-const LOGIN_INFO: &[u8] = b"fatima/v2/login";
 const USER_KEY_WRAP_INFO: &[u8] = b"fatima/v2/user-key/wrap";
 const USER_KEY_HASH_INFO: &[u8] = b"fatima/v2/user-key/hash";
 
@@ -42,11 +41,6 @@ impl Default for KdfParams {
 pub struct Ciphertext {
     pub nonce: String,
     pub ciphertext: String,
-}
-
-pub(crate) struct MasterKeys {
-    pub encryption: [u8; 32],
-    pub login: [u8; 32],
 }
 
 pub(crate) struct UserKeyKeys {
@@ -85,12 +79,8 @@ pub(crate) fn derive_master_key(
     Ok(key)
 }
 
-pub(crate) fn split_master_key(master: &[u8; 32]) -> Result<MasterKeys> {
-    let hkdf = Hkdf::<Sha256>::new(None, master);
-    Ok(MasterKeys {
-        encryption: expand(&hkdf, ENCRYPTION_INFO)?,
-        login: expand(&hkdf, LOGIN_INFO)?,
-    })
+pub(crate) fn derive_encryption_key(master: &[u8; 32]) -> Result<[u8; 32]> {
+    expand(&Hkdf::<Sha256>::new(None, master), ENCRYPTION_INFO)
 }
 
 pub(crate) fn derive_user_key(secret: &[u8]) -> Result<UserKeyKeys> {
@@ -225,12 +215,11 @@ mod tests {
     }
 
     #[test]
-    fn split_master_key_gives_distinct_keys() {
+    fn derive_encryption_key_differs_from_master_and_is_deterministic() {
         let master = random_key();
-        let keys = split_master_key(&master).unwrap();
-        assert_ne!(keys.encryption, keys.login);
-        assert_ne!(keys.encryption, master);
-        assert_ne!(keys.login, master);
+        let key = derive_encryption_key(&master).unwrap();
+        assert_ne!(key, master);
+        assert_eq!(key, derive_encryption_key(&master).unwrap());
     }
 
     #[test]

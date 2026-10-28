@@ -4,7 +4,7 @@ use crate::{FatimaError, Result};
 
 use super::associated_data;
 use super::crypto::{
-    decrypt, encrypt, generate_key_pair, open_sealed, random_key, seal_to, split_master_key,
+    decrypt, encrypt, generate_key_pair, open_sealed, random_key, seal_to, derive_encryption_key,
     to_key, Ciphertext, KdfParams, KeyPair,
 };
 use super::legacy::crypto::{decode_b64, encode_b64};
@@ -27,7 +27,7 @@ pub(crate) fn new_account_secrets(
     Ok(AccountSecrets {
         account_key: random_key(),
         key_pair: generate_key_pair(),
-        master_encryption_key: split_master_key(master_key)?.encryption,
+        master_encryption_key: derive_encryption_key(master_key)?,
         kdf_salt,
         kdf_params,
     })
@@ -155,7 +155,6 @@ pub(crate) fn unwrap_user_environment_keys(
                     account_key,
                     project_id,
                     &user_key.id,
-                    environment,
                 )?,
             );
         }
@@ -169,11 +168,10 @@ pub(crate) fn unwrap_user_environment_key(
     key: &[u8; 32],
     project_id: &str,
     user_key_id: &str,
-    environment: &str,
 ) -> Result<[u8; 32]> {
     to_key(&decrypt(
         wrapped,
         key,
-        &associated_data::user_environment(project_id, user_key_id, environment),
+        &associated_data::user_environment(project_id, user_key_id),
     )?)
 }

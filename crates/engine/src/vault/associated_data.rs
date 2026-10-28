@@ -20,20 +20,12 @@ pub(crate) fn private_key(project_id: &str) -> Vec<u8> {
     format!("fatima/v2/{project_id}/private-key").into_bytes()
 }
 
-pub(crate) fn user_key_environment(
-    project_id: &str,
-    user_key_id: &str,
-    environment: &str,
-) -> Vec<u8> {
-    format!("fatima/v2/{project_id}/user-key/{user_key_id}/{environment}").into_bytes()
+pub(crate) fn user_key_environment(project_id: &str, user_key_id: &str) -> Vec<u8> {
+    format!("fatima/v2/{project_id}/user-key/{user_key_id}").into_bytes()
 }
 
-pub(crate) fn user_environment(
-    project_id: &str,
-    user_key_id: &str,
-    environment: &str,
-) -> Vec<u8> {
-    format!("fatima/v2/{project_id}/user-environment/{user_key_id}/{environment}").into_bytes()
+pub(crate) fn user_environment(project_id: &str, user_key_id: &str) -> Vec<u8> {
+    format!("fatima/v2/{project_id}/user-environment/{user_key_id}").into_bytes()
 }
 
 pub(crate) fn secret_field(

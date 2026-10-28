@@ -142,7 +142,7 @@ pub(crate) fn authenticate_user_key(
             to_key(&decrypt(
                 wrapped,
                 &keys.wrapping,
-                &associated_data::user_key_environment(project_id, &id, environment),
+                &associated_data::user_key_environment(project_id, &id),
             )?)?,
         );
     }
@@ -155,7 +155,6 @@ pub(crate) fn authenticate_user_key(
                 &keys.wrapping,
                 project_id,
                 &id,
-                environment,
             )?,
         );
     }
@@ -188,12 +187,11 @@ pub(crate) fn create_user_key_record(
             encrypt(
                 environment_secret,
                 &keys.wrapping,
-                &associated_data::user_key_environment(project_id, &id, environment),
+                &associated_data::user_key_environment(project_id, &id),
             )?,
         );
         let user_environment_secret = random_key();
-        let user_environment_data =
-            associated_data::user_environment(project_id, &id, environment);
+        let user_environment_data = associated_data::user_environment(project_id, &id);
         wrapped_user_environment_secrets.insert(
             environment.clone(),
             WrappedUserEnvironmentSecret {
