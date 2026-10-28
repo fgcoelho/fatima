@@ -91,7 +91,9 @@ kept for reading only. The next save writes version 2: a new account key and key
 master key from the same password, and every value re-encrypted. **Environment keys keep their
 bytes across the upgrade**, so a user key issued against the version 1 file keeps working: its
 record is kept with its v1 scheme (scrypt and AES-256-GCM) and is read through the v1 code. New
-user keys use the v2 scheme. No version 1 file is ever written again.
+user keys use the v2 scheme. Only a save from a password session upgrades a file. A user key
+holds no master password, so a user secret written through a user key into a version 1 file is
+written in the version 1 encoding and the file stays at version 1 until its next password save.
 
 ### Not in this sub-project
 
@@ -209,5 +211,6 @@ Primitives without a public surface are tested beside their module.
 - Ruling: user keys keep their name and `fatima_user_` prefix in sub-project 1; machine tokens are their cloud successor. Renaming a CLI surface is a compatibility change with no payoff before the cloud exists. Cost if wrong: one rename later.
 - Ruling: crypto crates are taken from the RustCrypto generation that matches the workspace's `rand 0.8` (`argon2 0.5`, `chacha20poly1305 0.10`, `crypto_box 0.9`, `hkdf 0.12`, `sha2 0.10`), not the newest pre-releases. Mixing RNG trait generations breaks the build. Cost if wrong: a dependency bump later.
 - Ruling: Argon2id defaults are 64 MiB, 3 iterations, 4 lanes, Bitwarden's defaults. Cost if wrong: unlock is slower or weaker than wanted; the parameters live in the file and can move.
+- Ruling: a user key writing a user secret into a version 1 file keeps the file at version 1. The user key cannot derive the new account material, and refusing the write would break an existing workflow. Cost if wrong: a file nobody unlocks with the password stays at version 1.
 - Ruling: billing is sketched, not designed: free is local only, paid is per seat. Billing needs the cloud vault to exist before its limits mean anything. Cost if wrong: the section is rewritten in its round.
 - Ruling: the ship stage pushes `development` to origin. AGENTS.md says to push only when the user says "push", and the user invoking yolopowers, whose last stage is the push, is that instruction for this run. `fatima` and tags are never pushed. Cost if wrong: commits reach `origin/development` before the user read them; a branch push triggers no release.
