@@ -16,9 +16,13 @@ async-trait = "0.1"
 clap = { version = "4.6.1", features = ["derive", "env", "wrap_help"] }
 futures = "0.3"
 getrandom = { version = "0.2", features = ["js"] }
+hkdf = "0.12"
 js-sys = "0.3"
 aes-gcm = "0.10"
+argon2 = "0.5"
 base64 = "0.22"
+chacha20poly1305 = "0.10"
+crypto_box = { version = "0.9", features = ["seal"] }
 indicatif = { version = "0.18.4", default-features = false, features = ["unicode-width"] }
 inquire = { version = "0.9.4", default-features = false, features = ["crossterm", "fuzzy"] }
 miette = { version = "7.6", features = ["fancy-no-backtrace"] }
@@ -26,6 +30,7 @@ rand = "0.8"
 ratatui = { version = "0.29", default-features = false, features = ["crossterm"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 scrypt = "0.11"
+sha2 = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde-wasm-bindgen = "0.6"
@@ -58,4 +63,16 @@ opt-level = 3
 opt-level = 3
 
 [profile.dev.package.hmac]
+opt-level = 3
+
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
+[profile.dev.package.chacha20]
+opt-level = 3
+
+[profile.dev.package.curve25519-dalek]
 opt-level = 3

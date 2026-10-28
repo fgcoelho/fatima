@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::legacy::{StoredVaultFile, UserKeyRecord};
+use super::crypto::{Ciphertext, KdfParams, KeyPair};
 
 pub(crate) const DEFAULT_STORE_PATH: &str = ".fatima";
 pub(crate) const VAULT_FILE_NAME: &str = "vault.json";
@@ -27,6 +27,104 @@ pub struct ProjectSecretManagerSettings {
     pub default_environment: String,
     pub environments: Vec<String>,
     pub store_path: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultKdf {
+    pub algorithm: String,
+    pub salt: String,
+    #[serde(flatten)]
+    pub params: KdfParams,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultEncryption {
+    pub algorithm: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountRecord {
+    pub wrapped_account_key: Ciphertext,
+    pub public_key: String,
+    pub wrapped_private_key: Ciphertext,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvironmentGrant {
+    pub public_key: String,
+    pub sealed_key: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvironmentRecord {
+    pub name: String,
+    pub grants: Vec<EnvironmentGrant>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredVaultFile {
+    pub version: u8,
+    pub project_id: String,
+    pub mode: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub default_environment: String,
+    pub kdf: VaultKdf,
+    pub encryption: VaultEncryption,
+    pub account: AccountRecord,
+    pub environments: Vec<EnvironmentRecord>,
+    #[serde(default)]
+    pub user_keys: Vec<UserKeyRecord>,
+    #[serde(default)]
+    pub secrets: Vec<StoredSecretRecord>,
+    #[serde(default)]
+    pub user_secrets: Vec<StoredUserSecretRecord>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct StoredSecretRecord {
+    pub id: String,
+    #[serde(default)]
+    pub keys: BTreeMap<String, Ciphertext>,
+    #[serde(default)]
+    pub values: BTreeMap<String, Ciphertext>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredUserSecretRecord {
+    pub id: String,
+    pub owner_user_key_id: String,
+    #[serde(default)]
+    pub keys: BTreeMap<String, Ciphertext>,
+    #[serde(default)]
+    pub values: BTreeMap<String, Ciphertext>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WrappedUserEnvironmentSecret {
+    pub by_account_key: Ciphertext,
+    pub by_user_key: Ciphertext,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserKeyRecord {
+    pub id: String,
+    pub name: String,
+    pub scheme: String,
+    pub secret_hash: String,
+    #[serde(default)]
+    pub wrapped_environment_secrets: BTreeMap<String, Ciphertext>,
+    #[serde(default)]
+    pub wrapped_user_environment_secrets: BTreeMap<String, WrappedUserEnvironmentSecret>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -91,7 +189,7 @@ pub(crate) enum FatimaVaultSession {
         raw_key: String,
         user_key_id: String,
         environments: Vec<String>,
-        user_environment_secrets: BTreeMap<String, Vec<u8>>,
+        user_environment_secrets: BTreeMap<String, [u8; 32]>,
     },
 }
 
@@ -103,9 +201,14 @@ pub(crate) struct UnlockedVault {
     pub data: StoredVaultData,
     pub user_keys: Vec<UserKeyRecord>,
     pub user_secrets: Vec<UserSecretRecord>,
-    pub environment_secrets: BTreeMap<String, Vec<u8>>,
-    pub user_environment_secrets: BTreeMap<String, BTreeMap<String, Vec<u8>>>,
-    pub master_password_key: Vec<u8>,
+    pub environment_secrets: BTreeMap<String, [u8; 32]>,
+    pub user_environment_secrets: BTreeMap<String, BTreeMap<String, [u8; 32]>>,
+    pub project_id: String,
+    pub account_key: [u8; 32],
+    pub key_pair: KeyPair,
+    pub master_encryption_key: [u8; 32],
+    pub kdf_salt: Vec<u8>,
+    pub kdf_params: KdfParams,
 }
 
 pub(crate) struct ProjectStore {

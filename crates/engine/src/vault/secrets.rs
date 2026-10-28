@@ -4,6 +4,7 @@ use std::path::Path;
 use crate::env::{format_secrets, parse_env, SecretFormat, Secrets};
 use crate::{FatimaError, Result};
 
+use super::associated_data::{self, Field};
 use super::domain::{assert_environment, to_environment_map};
 use super::store::{decrypt_environment_value, encrypt_environment_value, read_store, write_store};
 use super::types::{FatimaVaultSession, SecretRecord};
@@ -183,8 +184,16 @@ impl FatimaVault {
             return Err(FatimaError::message("Secret key cannot be empty."));
         }
         let mut store = read_store(Some(&self.options))?;
-        let encrypted_key = encrypt_environment_value(key, &user_environment_secret)?;
-        let encrypted_value = encrypt_environment_value(value, &user_environment_secret)?;
+        let project_id = store.file.project_id.clone();
+        let field_data = |secret_id: &str, field: Field| {
+            associated_data::user_secret_field(
+                &project_id,
+                environment,
+                &user_key_id,
+                secret_id,
+                field,
+            )
+        };
         let mut existing_index = None;
         for (index, secret) in store.file.user_secrets.iter().enumerate() {
             if secret.owner_user_key_id != user_key_id {
@@ -193,11 +202,30 @@ impl FatimaVault {
             let Some(encrypted_existing_key) = secret.keys.get(environment) else {
                 continue;
             };
-            if decrypt_environment_value(encrypted_existing_key, &user_environment_secret)? == key {
+            let existing_key = decrypt_environment_value(
+                encrypted_existing_key,
+                &user_environment_secret,
+                &field_data(&secret.id, Field::Name),
+            )?;
+            if existing_key == key {
                 existing_index = Some(index);
                 break;
             }
         }
+        let secret_id = match existing_index {
+            Some(index) => store.file.user_secrets[index].id.clone(),
+            None => uuid::Uuid::new_v4().to_string(),
+        };
+        let encrypted_key = encrypt_environment_value(
+            key,
+            &user_environment_secret,
+            &field_data(&secret_id, Field::Name),
+        )?;
+        let encrypted_value = encrypt_environment_value(
+            value,
+            &user_environment_secret,
+            &field_data(&secret_id, Field::Value),
+        )?;
         if let Some(index) = existing_index {
             let secret = &mut store.file.user_secrets[index];
             secret.keys.insert(environment.to_string(), encrypted_key);
@@ -212,8 +240,8 @@ impl FatimaVault {
             store
                 .file
                 .user_secrets
-                .push(super::legacy::StoredUserSecretRecord {
-                    id: uuid::Uuid::new_v4().to_string(),
+                .push(super::types::StoredUserSecretRecord {
+                    id: secret_id,
                     owner_user_key_id: user_key_id,
                     keys,
                     values,

@@ -1,8 +1,7 @@
 use crate::{FatimaError, Result};
 
-use super::legacy::crypto::random_bytes;
+use super::crypto::random_key;
 use super::domain::assert_environment;
-use super::types::KEY_LENGTH;
 use super::handle::FatimaVault;
 
 impl FatimaVault {
@@ -25,7 +24,7 @@ impl FatimaVault {
         unlocked.data.environments.push(environment.to_string());
         unlocked
             .environment_secrets
-            .insert(environment.to_string(), random_bytes(KEY_LENGTH));
+            .insert(environment.to_string(), random_key());
         sync_project(unlocked);
         Ok(())
     }
@@ -61,28 +60,7 @@ impl FatimaVault {
                 .environment_secrets
                 .insert(next.to_string(), secret);
         }
-        for record in &mut unlocked.user_keys {
-            if let Some(secret) = record.wrapped_environment_secrets.remove(current) {
-                record
-                    .wrapped_environment_secrets
-                    .insert(next.to_string(), secret);
-            }
-            if let Some(secret) = record.wrapped_user_environment_secrets.remove(current) {
-                record
-                    .wrapped_user_environment_secrets
-                    .insert(next.to_string(), secret);
-            }
-        }
-        for user_secrets in unlocked.user_environment_secrets.values_mut() {
-            if let Some(secret) = user_secrets.remove(current) {
-                user_secrets.insert(next.to_string(), secret);
-            }
-        }
-        for secret in &mut unlocked.user_secrets {
-            if let Some(value) = secret.values.remove(current) {
-                secret.values.insert(next.to_string(), value);
-            }
-        }
+        revoke_user_environment_access(unlocked, current);
         if unlocked.data.default_environment == current {
             unlocked.data.default_environment = next.to_string();
         }
@@ -111,19 +89,7 @@ impl FatimaVault {
             .data
             .secrets
             .retain(|secret| !secret.values.is_empty());
-        for record in &mut unlocked.user_keys {
-            record.wrapped_environment_secrets.remove(environment);
-            record.wrapped_user_environment_secrets.remove(environment);
-        }
-        for user_secrets in unlocked.user_environment_secrets.values_mut() {
-            user_secrets.remove(environment);
-        }
-        for secret in &mut unlocked.user_secrets {
-            secret.values.remove(environment);
-        }
-        unlocked
-            .user_secrets
-            .retain(|secret| !secret.values.is_empty());
+        revoke_user_environment_access(unlocked, environment);
         unlocked
             .user_keys
             .retain(|record| !record.wrapped_environment_secrets.is_empty());
@@ -133,6 +99,22 @@ impl FatimaVault {
         sync_project(unlocked);
         Ok(unlocked.data.default_environment.clone())
     }
+}
+
+fn revoke_user_environment_access(unlocked: &mut super::types::UnlockedVault, environment: &str) {
+    for record in &mut unlocked.user_keys {
+        record.wrapped_environment_secrets.remove(environment);
+        record.wrapped_user_environment_secrets.remove(environment);
+    }
+    for user_secrets in unlocked.user_environment_secrets.values_mut() {
+        user_secrets.remove(environment);
+    }
+    for secret in &mut unlocked.user_secrets {
+        secret.values.remove(environment);
+    }
+    unlocked
+        .user_secrets
+        .retain(|secret| !secret.values.is_empty());
 }
 
 fn sync_project(unlocked: &mut super::types::UnlockedVault) {

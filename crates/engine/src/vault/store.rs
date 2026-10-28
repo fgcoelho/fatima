@@ -7,17 +7,26 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{FatimaError, Result};
 
-use super::legacy::crypto::{decrypt_bytes, derive_key, encrypt_bytes, random_b64, random_bytes};
-use super::domain::assert_non_empty_password;
-use super::legacy::{
-    EnvironmentRecord, StoredSecretRecord, StoredUserSecretRecord, StoredVaultFile,
-    VaultEncryption, VaultKdf,
+use super::account::{
+    grant_environments, new_account_secrets, unwrap_account, unwrap_environment_keys,
+    unwrap_user_environment_keys, wrap_account, AccountSecrets,
 };
+use super::associated_data::{self, Field};
+use super::crypto::{
+    decrypt, derive_master_key, encrypt, random_key, split_master_key, Ciphertext,
+    KdfParams,
+};
+use super::domain::assert_non_empty_password;
+use super::legacy::crypto::{decode_b64, encode_b64, random_bytes};
 use super::types::{
     ProjectSecretManagerSettings, ProjectStore, ResolvedSettings, SecretRecord, StoreFiles,
-    StoredProjectConfig, StoredVaultData, UserSecretRecord, VaultOptions, DEFAULT_ENVIRONMENTS,
-    DEFAULT_STORE_PATH, KEY_LENGTH,
+    StoredProjectConfig, StoredSecretRecord, StoredUserSecretRecord, StoredVaultData,
+    StoredVaultFile, UserSecretRecord, VaultEncryption, VaultKdf, VaultOptions,
+    DEFAULT_ENVIRONMENTS, DEFAULT_STORE_PATH,
 };
+
+const KDF_SALT_LENGTH: usize = 16;
+const VAULT_VERSION: u8 = 2;
 
 pub(crate) fn has_store(options: Option<&VaultOptions>) -> bool {
     let project = resolve_settings(options);
@@ -26,7 +35,6 @@ pub(crate) fn has_store(options: Option<&VaultOptions>) -> bool {
 
 pub(crate) fn get_settings(options: Option<&VaultOptions>) -> Result<ProjectSecretManagerSettings> {
     let store = read_store(options)?;
-    assert_supported_store(&store)?;
     Ok(ProjectSecretManagerSettings {
         default_environment: store.file.default_environment,
         environments: store
@@ -67,31 +75,34 @@ pub(crate) fn initialize_store(
         secrets: Vec::new(),
         user_secrets: Vec::new(),
     };
-    let salt = random_b64(16);
-    let master_password_key = derive_key(password, &salt)?;
+    let kdf_salt = random_bytes(KDF_SALT_LENGTH);
+    let kdf_params = KdfParams::default();
+    let master_key = derive_master_key(password, &kdf_salt, &kdf_params)?;
+    let account = new_account_secrets(&master_key, kdf_salt, kdf_params)?;
+    let project_id = uuid::Uuid::new_v4().to_string();
     let environment_secrets = environments
         .iter()
-        .map(|environment| (environment.clone(), random_bytes(KEY_LENGTH)))
+        .map(|environment| (environment.clone(), random_key()))
         .collect::<BTreeMap<_, _>>();
     let file = StoredVaultFile {
-        version: 1,
+        version: VAULT_VERSION,
+        project_id: project_id.clone(),
         mode: "local".to_string(),
         created_at: now.clone(),
         updated_at: now,
         default_environment: data.default_environment.clone(),
-        environments: wrap_environment_secrets(
+        kdf: stored_kdf(&account),
+        encryption: VaultEncryption {
+            algorithm: "xchacha20-poly1305".to_string(),
+        },
+        account: wrap_account(&project_id, &account)?,
+        environments: grant_environments(
             &data.environments,
             &environment_secrets,
-            &master_password_key,
+            &[],
+            &account.key_pair,
         )?,
         user_keys: Vec::new(),
-        kdf: VaultKdf {
-            algorithm: "scrypt".to_string(),
-            salt,
-        },
-        encryption: VaultEncryption {
-            algorithm: "aes-256-gcm".to_string(),
-        },
         secrets: Vec::new(),
         user_secrets: Vec::new(),
     };
@@ -103,8 +114,16 @@ pub(crate) fn initialize_store(
         data,
         environment_secrets,
         BTreeMap::new(),
-        master_password_key,
+        account,
     ))
+}
+
+fn stored_kdf(account: &AccountSecrets) -> VaultKdf {
+    VaultKdf {
+        algorithm: "argon2id".to_string(),
+        salt: encode_b64(&account.kdf_salt),
+        params: account.kdf_params.clone(),
+    }
 }
 
 pub(crate) fn resolve_settings(options: Option<&VaultOptions>) -> ResolvedSettings {
@@ -133,9 +152,19 @@ pub(crate) fn read_store(options: Option<&VaultOptions>) -> Result<ProjectStore>
             project.store_path.display()
         )));
     }
+    let content = fs::read_to_string(&files.vault_path).map_err(|source| FatimaError::ReadFile {
+        path: files.vault_path.display().to_string(),
+        source,
+    })?;
+    let probe: VersionProbe = parse_json(&content, "Fatima vault")?;
+    if probe.version != VAULT_VERSION {
+        return Err(FatimaError::UnsupportedVaultVersion {
+            version: probe.version,
+        });
+    }
     Ok(ProjectStore {
         project,
-        file: read_json(&files.vault_path, "Fatima vault")?,
+        file: parse_json(&content, "Fatima vault")?,
     })
 }
 
@@ -143,25 +172,27 @@ pub(crate) fn write_store(store: &ProjectStore) -> Result<()> {
     write_json(&StoreFiles::new(&store.project).vault_path, &store.file)
 }
 
-pub(crate) fn assert_supported_store(store: &ProjectStore) -> Result<()> {
-    if store.file.version != 1 {
-        return Err(FatimaError::message(
-            "Fatima vault format is no longer supported. Delete and reinitialize the local vault.",
-        ));
-    }
-    Ok(())
-}
-
 pub(crate) fn unlock_store(
     password: &str,
     options: Option<&VaultOptions>,
 ) -> Result<super::types::UnlockedVault> {
     let store = read_store(options)?;
-    assert_supported_store(&store)?;
-    let master_password_key = derive_key(password, &store.file.kdf.salt)?;
-    let environment_secrets = unwrap_environment_secrets(&store.file, &master_password_key)?;
-    let user_environment_secrets =
-        unwrap_user_environment_secrets(&store.file.user_keys, &master_password_key)?;
+    let kdf_salt = decode_b64(&store.file.kdf.salt)?;
+    let kdf_params = store.file.kdf.params.clone();
+    let master_key = derive_master_key(password, &kdf_salt, &kdf_params)?;
+    let account = unwrap_account(
+        &store.file.account,
+        &store.file.project_id,
+        split_master_key(&master_key)?.encryption,
+        kdf_salt,
+        kdf_params,
+    )?;
+    let environment_secrets = unwrap_environment_keys(&store.file.environments, &account.key_pair)?;
+    let user_environment_secrets = unwrap_user_environment_keys(
+        &store.file.user_keys,
+        &store.file.project_id,
+        &account.account_key,
+    )?;
     let data = decrypt_data(&store.file, &environment_secrets, &user_environment_secrets)?;
     Ok(unlocked(
         store.project,
@@ -169,23 +200,40 @@ pub(crate) fn unlock_store(
         data,
         environment_secrets,
         user_environment_secrets,
-        master_password_key,
+        account,
     ))
 }
 
 pub(crate) fn save_unlocked(unlocked: &mut super::types::UnlockedVault) -> Result<()> {
     unlocked.file.updated_at = now()?;
     unlocked.file.default_environment = unlocked.data.default_environment.clone();
-    unlocked.file.environments = wrap_environment_secrets(
+    let account = AccountSecrets {
+        account_key: unlocked.account_key,
+        key_pair: unlocked.key_pair.clone(),
+        master_encryption_key: unlocked.master_encryption_key,
+        kdf_salt: unlocked.kdf_salt.clone(),
+        kdf_params: unlocked.kdf_params.clone(),
+    };
+    unlocked.file.kdf = stored_kdf(&account);
+    unlocked.file.account = wrap_account(&unlocked.project_id, &account)?;
+    unlocked.file.environments = grant_environments(
         &unlocked.data.environments,
         &unlocked.environment_secrets,
-        &unlocked.master_password_key,
+        &unlocked.file.environments,
+        &unlocked.key_pair,
     )?;
     unlocked.file.user_keys = unlocked.user_keys.clone();
     unlocked.config.updated_at = unlocked.file.updated_at.clone();
-    unlocked.file.secrets = encrypt_secrets(&unlocked.data.secrets, &unlocked.environment_secrets)?;
-    unlocked.file.user_secrets =
-        encrypt_user_secrets(&unlocked.user_secrets, &unlocked.user_environment_secrets)?;
+    unlocked.file.secrets = encrypt_secrets(
+        &unlocked.project_id,
+        &unlocked.data.secrets,
+        &unlocked.environment_secrets,
+    )?;
+    unlocked.file.user_secrets = encrypt_user_secrets(
+        &unlocked.project_id,
+        &unlocked.user_secrets,
+        &unlocked.user_environment_secrets,
+    )?;
     let project = ResolvedSettings {
         store_path: PathBuf::from(&unlocked.project.store_path),
     };
@@ -196,9 +244,9 @@ fn unlocked(
     project: ResolvedSettings,
     file: StoredVaultFile,
     data: StoredVaultData,
-    environment_secrets: BTreeMap<String, Vec<u8>>,
-    user_environment_secrets: BTreeMap<String, BTreeMap<String, Vec<u8>>>,
-    master_password_key: Vec<u8>,
+    environment_secrets: BTreeMap<String, [u8; 32]>,
+    user_environment_secrets: BTreeMap<String, BTreeMap<String, [u8; 32]>>,
+    account: AccountSecrets,
 ) -> super::types::UnlockedVault {
     let store_name = project
         .store_path
@@ -223,6 +271,7 @@ fn unlocked(
             environments: data.environments.clone(),
             store_path: project.store_path.display().to_string(),
         },
+        project_id: file.project_id.clone(),
         file,
         config,
         data,
@@ -230,7 +279,11 @@ fn unlocked(
         user_secrets,
         environment_secrets,
         user_environment_secrets,
-        master_password_key,
+        account_key: account.account_key,
+        key_pair: account.key_pair,
+        master_encryption_key: account.master_encryption_key,
+        kdf_salt: account.kdf_salt,
+        kdf_params: account.kdf_params,
     }
 }
 
@@ -242,59 +295,28 @@ pub(crate) fn environment_names(file: &StoredVaultFile) -> Vec<String> {
 }
 
 pub(crate) fn decrypt_environment_value(
-    value: &super::legacy::EncryptedBlob,
-    environment_secret: &[u8],
+    value: &Ciphertext,
+    environment_secret: &[u8; 32],
+    associated_data: &[u8],
 ) -> Result<String> {
-    let bytes = decrypt_bytes(value, environment_secret)?;
-    String::from_utf8(bytes).map_err(|error| FatimaError::message(error.to_string()))
+    let bytes = decrypt(value, environment_secret, associated_data)?;
+    String::from_utf8(bytes).map_err(|_| FatimaError::Decrypt)
 }
 
 pub(crate) fn encrypt_environment_value(
     value: &str,
-    environment_secret: &[u8],
-) -> Result<super::legacy::EncryptedBlob> {
-    encrypt_bytes(value.as_bytes(), environment_secret)
-}
-
-fn wrap_environment_secrets(
-    environments: &[String],
-    environment_secrets: &BTreeMap<String, Vec<u8>>,
-    master_password_key: &[u8],
-) -> Result<Vec<EnvironmentRecord>> {
-    environments
-        .iter()
-        .map(|environment| {
-            let secret = environment_secrets.get(environment).ok_or_else(|| {
-                FatimaError::message(format!("Missing Fatima environment secret: {environment}"))
-            })?;
-            Ok(EnvironmentRecord {
-                name: environment.clone(),
-                wrapped_environment_secret: encrypt_bytes(secret, master_password_key)?,
-            })
-        })
-        .collect()
-}
-
-pub(crate) fn unwrap_environment_secrets(
-    file: &StoredVaultFile,
-    master_password_key: &[u8],
-) -> Result<BTreeMap<String, Vec<u8>>> {
-    file.environments
-        .iter()
-        .map(|environment| {
-            Ok((
-                environment.name.clone(),
-                decrypt_bytes(&environment.wrapped_environment_secret, master_password_key)?,
-            ))
-        })
-        .collect()
+    environment_secret: &[u8; 32],
+    associated_data: &[u8],
+) -> Result<Ciphertext> {
+    encrypt(value.as_bytes(), environment_secret, associated_data)
 }
 
 fn decrypt_data(
     file: &StoredVaultFile,
-    environment_secrets: &BTreeMap<String, Vec<u8>>,
-    user_environment_secrets: &BTreeMap<String, BTreeMap<String, Vec<u8>>>,
+    environment_secrets: &BTreeMap<String, [u8; 32]>,
+    user_environment_secrets: &BTreeMap<String, BTreeMap<String, [u8; 32]>>,
 ) -> Result<StoredVaultData> {
+    let project_id = &file.project_id;
     let mut secrets = Vec::new();
     for stored in &file.secrets {
         let mut values = BTreeMap::new();
@@ -308,12 +330,27 @@ fn decrypt_data(
                     key = Some(decrypt_environment_value(
                         encrypted_key,
                         environment_secret,
+                        &associated_data::secret_field(
+                            project_id,
+                            environment,
+                            &stored.id,
+                            Field::Name,
+                        ),
                     )?);
                 }
             }
             values.insert(
                 environment.clone(),
-                decrypt_environment_value(encrypted, environment_secret)?,
+                decrypt_environment_value(
+                    encrypted,
+                    environment_secret,
+                    &associated_data::secret_field(
+                        project_id,
+                        environment,
+                        &stored.id,
+                        Field::Value,
+                    ),
+                )?,
             );
         }
         secrets.push(SecretRecord {
@@ -322,7 +359,7 @@ fn decrypt_data(
             values,
         });
     }
-    let user_secrets = decrypt_user_secrets(&file.user_secrets, user_environment_secrets)?;
+    let user_secrets = decrypt_user_secrets(project_id, &file.user_secrets, user_environment_secrets)?;
     Ok(StoredVaultData {
         default_environment: file.default_environment.clone(),
         environments: environment_names(file),
@@ -332,8 +369,9 @@ fn decrypt_data(
 }
 
 fn encrypt_secrets(
+    project_id: &str,
     secrets: &[SecretRecord],
-    environment_secrets: &BTreeMap<String, Vec<u8>>,
+    environment_secrets: &BTreeMap<String, [u8; 32]>,
 ) -> Result<Vec<StoredSecretRecord>> {
     let mut stored_secrets = Vec::new();
     for secret in secrets {
@@ -345,11 +383,29 @@ fn encrypt_secrets(
             })?;
             keys.insert(
                 environment.clone(),
-                encrypt_environment_value(&secret.key, environment_secret)?,
+                encrypt_environment_value(
+                    &secret.key,
+                    environment_secret,
+                    &associated_data::secret_field(
+                        project_id,
+                        environment,
+                        &secret.id,
+                        Field::Name,
+                    ),
+                )?,
             );
             values.insert(
                 environment.clone(),
-                encrypt_environment_value(value, environment_secret)?,
+                encrypt_environment_value(
+                    value,
+                    environment_secret,
+                    &associated_data::secret_field(
+                        project_id,
+                        environment,
+                        &secret.id,
+                        Field::Value,
+                    ),
+                )?,
             );
         }
         stored_secrets.push(StoredSecretRecord {
@@ -361,53 +417,54 @@ fn encrypt_secrets(
     Ok(stored_secrets)
 }
 
-fn unwrap_user_environment_secrets(
-    user_keys: &[super::legacy::UserKeyRecord],
-    master_password_key: &[u8],
-) -> Result<BTreeMap<String, BTreeMap<String, Vec<u8>>>> {
-    if master_password_key.is_empty() {
-        return Ok(BTreeMap::new());
-    }
-    let mut result = BTreeMap::new();
-    for user_key in user_keys {
-        let mut by_environment = BTreeMap::new();
-        for (environment, wrapped) in &user_key.wrapped_user_environment_secrets {
-            by_environment.insert(
-                environment.clone(),
-                decrypt_bytes(&wrapped.by_master_password, master_password_key)?,
-            );
-        }
-        result.insert(user_key.id.clone(), by_environment);
-    }
-    Ok(result)
-}
-
 fn decrypt_user_secrets(
+    project_id: &str,
     stored_secrets: &[StoredUserSecretRecord],
-    user_environment_secrets: &BTreeMap<String, BTreeMap<String, Vec<u8>>>,
+    user_environment_secrets: &BTreeMap<String, BTreeMap<String, [u8; 32]>>,
 ) -> Result<Vec<UserSecretRecord>> {
     let mut secrets = Vec::new();
     for stored in stored_secrets {
+        let owner = &stored.owner_user_key_id;
         let mut values = BTreeMap::new();
         let mut key = None;
         for (environment, encrypted) in &stored.values {
             let secret = user_environment_secrets
-                .get(&stored.owner_user_key_id)
+                .get(owner)
                 .and_then(|items| items.get(environment))
                 .ok_or_else(|| FatimaError::message("Missing Fatima user environment secret."))?;
             if key.is_none() {
                 if let Some(encrypted_key) = stored.keys.get(environment) {
-                    key = Some(decrypt_environment_value(encrypted_key, secret)?);
+                    key = Some(decrypt_environment_value(
+                        encrypted_key,
+                        secret,
+                        &associated_data::user_secret_field(
+                            project_id,
+                            environment,
+                            owner,
+                            &stored.id,
+                            Field::Name,
+                        ),
+                    )?);
                 }
             }
             values.insert(
                 environment.clone(),
-                decrypt_environment_value(encrypted, secret)?,
+                decrypt_environment_value(
+                    encrypted,
+                    secret,
+                    &associated_data::user_secret_field(
+                        project_id,
+                        environment,
+                        owner,
+                        &stored.id,
+                        Field::Value,
+                    ),
+                )?,
             );
         }
         secrets.push(UserSecretRecord {
             id: stored.id.clone(),
-            owner_user_key_id: stored.owner_user_key_id.clone(),
+            owner_user_key_id: owner.clone(),
             key: key
                 .ok_or_else(|| FatimaError::message("Missing encrypted Fatima user secret key."))?,
             values,
@@ -417,30 +474,52 @@ fn decrypt_user_secrets(
 }
 
 fn encrypt_user_secrets(
+    project_id: &str,
     secrets: &[UserSecretRecord],
-    user_environment_secrets: &BTreeMap<String, BTreeMap<String, Vec<u8>>>,
+    user_environment_secrets: &BTreeMap<String, BTreeMap<String, [u8; 32]>>,
 ) -> Result<Vec<StoredUserSecretRecord>> {
     let mut stored = Vec::new();
     for secret in secrets {
+        let owner = &secret.owner_user_key_id;
         let mut keys = BTreeMap::new();
         let mut values = BTreeMap::new();
         for (environment, value) in &secret.values {
             let user_environment_secret = user_environment_secrets
-                .get(&secret.owner_user_key_id)
+                .get(owner)
                 .and_then(|items| items.get(environment))
                 .ok_or_else(|| FatimaError::message("Missing Fatima user environment secret."))?;
             keys.insert(
                 environment.clone(),
-                encrypt_environment_value(&secret.key, user_environment_secret)?,
+                encrypt_environment_value(
+                    &secret.key,
+                    user_environment_secret,
+                    &associated_data::user_secret_field(
+                        project_id,
+                        environment,
+                        owner,
+                        &secret.id,
+                        Field::Name,
+                    ),
+                )?,
             );
             values.insert(
                 environment.clone(),
-                encrypt_environment_value(value, user_environment_secret)?,
+                encrypt_environment_value(
+                    value,
+                    user_environment_secret,
+                    &associated_data::user_secret_field(
+                        project_id,
+                        environment,
+                        owner,
+                        &secret.id,
+                        Field::Value,
+                    ),
+                )?,
             );
         }
         stored.push(StoredUserSecretRecord {
             id: secret.id.clone(),
-            owner_user_key_id: secret.owner_user_key_id.clone(),
+            owner_user_key_id: owner.clone(),
             keys,
             values,
         });
@@ -454,12 +533,13 @@ fn now() -> Result<String> {
         .map_err(|error| FatimaError::message(error.to_string()))
 }
 
-fn read_json<T: for<'de> Deserialize<'de>>(path: &std::path::Path, label: &str) -> Result<T> {
-    let content = fs::read_to_string(path).map_err(|source| FatimaError::ReadFile {
-        path: path.display().to_string(),
-        source,
-    })?;
-    serde_json::from_str(&content)
+#[derive(Deserialize)]
+struct VersionProbe {
+    version: u8,
+}
+
+fn parse_json<T: for<'de> Deserialize<'de>>(content: &str, label: &str) -> Result<T> {
+    serde_json::from_str(content)
         .map_err(|error| FatimaError::message(format!("Invalid {label}: {error}")))
 }
 

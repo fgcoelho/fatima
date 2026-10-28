@@ -1,3 +1,6 @@
+mod account;
+mod associated_data;
+mod crypto;
 mod domain;
 mod environments;
 mod handle;
@@ -10,9 +13,10 @@ mod store;
 mod types;
 mod user_key;
 
-pub use legacy::{EncryptedBlob, StoredVaultFile, UserKeyRecord};
+pub use crypto::Ciphertext;
 pub use types::{
     FatimaVaultSnapshot, GeneratedUserKey, ProjectSecretManagerSettings, SecretRecord,
-    StoredProjectConfig, StoredVaultData, UserSecretRecord, VaultOptions,
+    StoredProjectConfig, StoredVaultData, StoredVaultFile, UserKeyRecord, UserSecretRecord,
+    VaultOptions,
 };
 pub use handle::FatimaVault;

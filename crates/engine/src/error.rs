@@ -21,6 +21,12 @@ pub enum FatimaError {
         path: String,
         source: std::io::Error,
     },
+    #[error("wrong master password")]
+    WrongMasterPassword,
+    #[error("failed to decrypt Fatima vault data")]
+    Decrypt,
+    #[error("Fatima vault version {version} is not supported")]
+    UnsupportedVaultVersion { version: u8 },
 }
 
 impl FatimaError {

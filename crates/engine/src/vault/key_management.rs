@@ -1,5 +1,6 @@
 use crate::{FatimaError, Result};
 
+use super::account::unwrap_user_environment_key;
 use super::domain::dedupe;
 use super::types::GeneratedUserKey;
 use super::user_key::{assert_user_key_environments, create_user_key_record};
@@ -25,15 +26,19 @@ impl FatimaVault {
         }
         assert_user_key_environments(&unlocked.data.environments, &environments)?;
         let generated = create_user_key_record(
+            &unlocked.project_id,
             name,
             &environments,
             &unlocked.environment_secrets,
-            &unlocked.master_password_key,
+            &unlocked.account_key,
         )?;
         for (environment, wrapped) in &generated.record.wrapped_user_environment_secrets {
-            let secret = super::legacy::crypto::decrypt_bytes(
-                &wrapped.by_master_password,
-                &unlocked.master_password_key,
+            let secret = unwrap_user_environment_key(
+                &wrapped.by_account_key,
+                &unlocked.account_key,
+                &unlocked.project_id,
+                &generated.record.id,
+                environment,
             )?;
             unlocked
                 .user_environment_secrets
