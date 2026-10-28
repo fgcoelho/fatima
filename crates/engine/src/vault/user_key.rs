@@ -49,7 +49,9 @@ pub(crate) fn list_secrets_with_user_key(
         .get(environment)
         .map(|secret| (auth.user_key_id.as_str(), secret));
     let (mut secrets, user_secrets) = match &auth.store.file {
-        VaultFile::V1(file) => legacy::user_key_secrets(file, environment, environment_secret, user)?,
+        VaultFile::V1(file) => {
+            legacy::user_key_secrets(file, environment, environment_secret, user)?
+        }
         VaultFile::V2(file) => v2_user_key_secrets(file, environment, environment_secret, user)?,
     };
     for secret in user_secrets {

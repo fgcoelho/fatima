@@ -114,8 +114,11 @@ pub(crate) fn open(file: &StoredVaultFile, password: &str) -> Result<Opened> {
     for environment in &file.environments {
         environment_secrets.insert(
             environment.name.clone(),
-            unwrap_key(&environment.wrapped_environment_secret, &master_password_key)
-                .map_err(wrong_password)?,
+            unwrap_key(
+                &environment.wrapped_environment_secret,
+                &master_password_key,
+            )
+            .map_err(wrong_password)?,
         );
     }
     let mut user_environment_secrets = BTreeMap::new();
@@ -133,9 +136,14 @@ pub(crate) fn open(file: &StoredVaultFile, password: &str) -> Result<Opened> {
     let mut secrets = Vec::new();
     for stored in &file.secrets {
         let (key, values) = decrypt_record(&stored.keys, &stored.values, |environment| {
-            environment_secrets.get(environment).copied().ok_or_else(|| {
-                FatimaError::message(format!("Missing Fatima environment secret: {environment}"))
-            })
+            environment_secrets
+                .get(environment)
+                .copied()
+                .ok_or_else(|| {
+                    FatimaError::message(format!(
+                        "Missing Fatima environment secret: {environment}"
+                    ))
+                })
         })?;
         secrets.push(SecretRecord {
             id: stored.id.clone(),

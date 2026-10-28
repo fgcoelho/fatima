@@ -148,10 +148,11 @@ pub(crate) fn read_store(options: Option<&VaultOptions>) -> Result<ProjectStore>
             project.store_path.display()
         )));
     }
-    let content = fs::read_to_string(&files.vault_path).map_err(|source| FatimaError::ReadFile {
-        path: files.vault_path.display().to_string(),
-        source,
-    })?;
+    let content =
+        fs::read_to_string(&files.vault_path).map_err(|source| FatimaError::ReadFile {
+            path: files.vault_path.display().to_string(),
+            source,
+        })?;
     let probe: VersionProbe = parse_json(&content, "Fatima vault")?;
     let file = match probe.version {
         1 => VaultFile::V1(parse_json(&content, "Fatima vault")?),
@@ -454,7 +455,8 @@ fn decrypt_data(
             values,
         });
     }
-    let user_secrets = decrypt_user_secrets(project_id, &file.user_secrets, user_environment_secrets)?;
+    let user_secrets =
+        decrypt_user_secrets(project_id, &file.user_secrets, user_environment_secrets)?;
     Ok(StoredVaultData {
         default_environment: file.default_environment.clone(),
         environments: environment_names(file),

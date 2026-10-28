@@ -2,9 +2,9 @@ use crate::{FatimaError, Result};
 
 use super::account::unwrap_user_environment_key;
 use super::domain::dedupe;
+use super::handle::FatimaVault;
 use super::types::GeneratedUserKey;
 use super::user_key::{assert_user_key_environments, create_user_key_record};
-use super::handle::FatimaVault;
 
 impl FatimaVault {
     pub fn generate_user_key(

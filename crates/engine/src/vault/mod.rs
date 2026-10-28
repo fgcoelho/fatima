@@ -14,9 +14,9 @@ mod types;
 mod user_key;
 
 pub use crypto::Ciphertext;
+pub use handle::FatimaVault;
 pub use types::{
     FatimaVaultSnapshot, GeneratedUserKey, ProjectSecretManagerSettings, SecretRecord,
     StoredProjectConfig, StoredVaultData, StoredVaultFile, UserKeyRecord, UserSecretRecord,
     VaultOptions,
 };
-pub use handle::FatimaVault;

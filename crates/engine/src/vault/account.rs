@@ -4,11 +4,11 @@ use std::fmt;
 use crate::{FatimaError, Result};
 
 use super::associated_data;
+use super::crypto::{decode_b64, encode_b64};
 use super::crypto::{
-    decrypt, encrypt, generate_key_pair, open_sealed, random_key, seal_to, derive_encryption_key,
+    decrypt, derive_encryption_key, encrypt, generate_key_pair, open_sealed, random_key, seal_to,
     to_key, Ciphertext, KdfParams, KeyPair,
 };
-use super::crypto::{decode_b64, encode_b64};
 use super::types::{AccountRecord, EnvironmentGrant, EnvironmentRecord, UserKeyRecord};
 
 #[derive(Clone)]

@@ -26,7 +26,10 @@ pub fn submit_modal(state: &mut VaultAppState, runtime: &VaultRuntime) -> Result
     }
 }
 
-fn refresh_snapshot(state: &mut VaultAppState, snapshot: fatima_engine::vault::FatimaVaultSnapshot) {
+fn refresh_snapshot(
+    state: &mut VaultAppState,
+    snapshot: fatima_engine::vault::FatimaVaultSnapshot,
+) {
     state.project = snapshot.project.clone();
     state.session = Some(snapshot);
     clamp_selection(state);
@@ -34,7 +37,10 @@ fn refresh_snapshot(state: &mut VaultAppState, snapshot: fatima_engine::vault::F
 
 fn with_vault<T>(
     state: &mut VaultAppState,
-    f: impl FnOnce(&mut fatima_engine::vault::FatimaVault, &mut VaultAppState) -> fatima_engine::Result<T>,
+    f: impl FnOnce(
+        &mut fatima_engine::vault::FatimaVault,
+        &mut VaultAppState,
+    ) -> fatima_engine::Result<T>,
 ) -> Result<Option<T>> {
     let Some(mut vault) = state.vault.take() else {
         state.error = Some("Vault is not unlocked.".to_string());

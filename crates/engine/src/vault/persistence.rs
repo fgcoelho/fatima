@@ -1,8 +1,8 @@
 use crate::{FatimaError, Result};
 
+use super::handle::FatimaVault;
 use super::store::save_unlocked;
 use super::types::{FatimaVaultSession, FatimaVaultSnapshot};
-use super::handle::FatimaVault;
 
 impl FatimaVault {
     pub fn save(&mut self) -> Result<()> {

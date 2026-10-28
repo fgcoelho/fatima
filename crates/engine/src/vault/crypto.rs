@@ -14,7 +14,6 @@ use base64::Engine;
 
 use crate::{FatimaError, Result};
 
-
 const MAX_MEMORY_KIB: u32 = 1_048_576;
 const MAX_ITERATIONS: u32 = 16;
 const MAX_PARALLELISM: u32 = 16;
@@ -277,12 +276,30 @@ mod tests {
             parallelism: 1,
         };
         let invalid = [
-            KdfParams { memory_kib: 0, ..valid.clone() },
-            KdfParams { memory_kib: 1_048_577, ..valid.clone() },
-            KdfParams { iterations: 0, ..valid.clone() },
-            KdfParams { iterations: 17, ..valid.clone() },
-            KdfParams { parallelism: 0, ..valid.clone() },
-            KdfParams { parallelism: 17, ..valid.clone() },
+            KdfParams {
+                memory_kib: 0,
+                ..valid.clone()
+            },
+            KdfParams {
+                memory_kib: 1_048_577,
+                ..valid.clone()
+            },
+            KdfParams {
+                iterations: 0,
+                ..valid.clone()
+            },
+            KdfParams {
+                iterations: 17,
+                ..valid.clone()
+            },
+            KdfParams {
+                parallelism: 0,
+                ..valid.clone()
+            },
+            KdfParams {
+                parallelism: 17,
+                ..valid.clone()
+            },
         ];
         for params in invalid {
             assert!(matches!(

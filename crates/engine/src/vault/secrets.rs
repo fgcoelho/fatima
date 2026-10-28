@@ -6,11 +6,11 @@ use crate::{FatimaError, Result};
 
 use super::associated_data::{self, Field};
 use super::domain::{assert_environment, to_environment_map};
-use super::store::{decrypt_environment_value, encrypt_environment_value, read_store, write_store};
+use super::handle::FatimaVault;
 use super::legacy;
+use super::store::{decrypt_environment_value, encrypt_environment_value, read_store, write_store};
 use super::types::{FatimaVaultSession, SecretRecord, StoredVaultFile, VaultFile};
 use super::user_key::list_secrets_with_user_key;
-use super::handle::FatimaVault;
 
 impl FatimaVault {
     pub fn get_secrets(&self, environment: Option<&str>) -> Result<Secrets> {
@@ -217,13 +217,7 @@ fn set_v2_user_secret(
 ) -> Result<()> {
     let project_id = file.project_id.clone();
     let field_data = |secret_id: &str, field: Field| {
-        associated_data::user_secret_field(
-            &project_id,
-            environment,
-            user_key_id,
-            secret_id,
-            field,
-        )
+        associated_data::user_secret_field(&project_id, environment, user_key_id, secret_id, field)
     };
     let mut existing_index = None;
     for (index, secret) in file.user_secrets.iter().enumerate() {
