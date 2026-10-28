@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "mode": "local",
+  "createdAt": "2026-10-28T13:41:58.896500278Z",
+  "updatedAt": "2026-10-28T13:41:58.956889966Z",
+  "defaultEnvironment": "development",
+  "environments": [
+    {
+      "name": "development",
+      "wrappedEnvironmentSecret": {
+        "iv": "aOq5rnZu1VSdjitj",
+        "tag": "KlPZLjEcoBSIhFKR8iXEJw",
+        "ciphertext": "sgu_QLYofytx13TC92jp7iWDMi3AWC63parwm4bIzIk"
+      }
+    },
+    {
+      "name": "staging",
+      "wrappedEnvironmentSecret": {
+        "iv": "LP_PsbiFVuLIrdkk",
+        "tag": "3zJZckWbD9-CCiSQlrHRrw",
+        "ciphertext": "uIXPB7f1iHvpbbg22U_NdjnipBhvlCeJITrcM3S31h0"
+      }
+    },
+    {
+      "name": "production",
+      "wrappedEnvironmentSecret": {
+        "iv": "c6_nfSI1XC6E8JfY",
+        "tag": "hwUzsnJdDZTA6cQT0SSnvQ",
+        "ciphertext": "Xx91zgIIXYhlSjEV4tVq48jaSlZTPcBnSGiuYSwi9F0"
+      }
+    }
+  ],
+  "userKeys": [
+    {
+      "id": "lxA_GynrDsY",
+      "name": "ci",
+      "salt": "Dr9Hprk-3DQ-mzegYxzfwA",
+      "secretHash": "X12oGR7dUQxQRQdoYkERKNiK9V8xXgiirjj_L6HnoI8",
+      "wrappedEnvironmentSecrets": {
+        "development": {
+          "iv": "jzQ3YIHdMlG3VqP8",
+          "tag": "oZzAq1gR0tF5KLrx1L8A3Q",
+          "ciphertext": "3zcfSLls1jPrrgEtILZQV83oxgv2g7TJM17aXuOq2nY"
+        }
+      },
+      "wrappedUserEnvironmentSecrets": {
+        "development": {
+          "byMasterPassword": {
+            "iv": "YcudnH26ZW_LUU8T",
+            "tag": "O71U0QRogdaUFCTy9Q6aMQ",
+            "ciphertext": "FvMWmninuzkn_Du4GblKH3P7pSKhbcITvJcGr_l5R9g"
+          },
+          "byUserKey": {
+            "iv": "_0qDWIwvYyHKhdI4",
+            "tag": "gc3wAQ1OIDmJU1Q-urEMiw",
+            "ciphertext": "58nJ2J-wPD5spMo4EkOPLD3Ecp4IwDuzeGZLtvR97ls"
+          }
+        }
+      }
+    }
+  ],
+  "kdf": {
+    "algorithm": "scrypt",
+    "salt": "aEgNQWRwe8l3SC7D_zpv_g"
+  },
+  "encryption": {
+    "algorithm": "aes-256-gcm"
+  },
+  "secrets": [
+    {
+      "id": "4b326a7d-e909-4b81-933c-cd1f185bf12d",
+      "keys": {
+        "development": {
+          "iv": "-7B5lCtUnui4FBue",
+          "tag": "ohUATbNkkEHFD7xbDP6wwA",
+          "ciphertext": "_FcQBd3XCHjXVVht"
+        },
+        "production": {
+          "iv": "zMdHo961vD2Iql0x",
+          "tag": "LI3est4lz91vQctpnqtEKA",
+          "ciphertext": "IediotF0ar0snIRl"
+        }
+      },
+      "values": {
+        "development": {
+          "iv": "brAH2A4VqBVLJNre",
+          "tag": "cDFrdYJpxBJB5rSUe6arTQ",
+          "ciphertext": "ZluplYkQAnHILVgMhQY"
+        },
+        "production": {
+          "iv": "pZ_21DwggeazTp8y",
+          "tag": "Fi6OVK_Ny8RPRRj3qRnENA",
+          "ciphertext": "sa1iddrApW4z2LbQJL-o"
+        }
+      }
+    },
+    {
+      "id": "c4370ccc-6f59-48b6-b151-6829b15fa7f8",
+      "keys": {
+        "development": {
+          "iv": "cEb9bU0qImWJ7Yva",
+          "tag": "Q16Iq_BmzekVAe9nHM6zUQ",
+          "ciphertext": "T38Lz1ObwFf9"
+        }
+      },
+      "values": {
+        "development": {
+          "iv": "RJyVhebnfKeQsVh6",
+          "tag": "VFuv1HETBFcXk9v79LkwrQ",
+          "ciphertext": "gy6pva_92t8u"
+        }
+      }
+    }
+  ],
+  "userSecrets": [
+    {
+      "id": "597ffd7e-47af-47af-a0ee-5cf224a408c9",
+      "ownerUserKeyId": "lxA_GynrDsY",
+      "keys": {
+        "development": {
+          "iv": "9k_NAYQs4GQJnahb",
+          "tag": "Xs6Ioyf9hitkL6ONAt-qKg",
+          "ciphertext": "oTWyEKw"
+        }
+      },
+      "values": {
+        "development": {
+          "iv": "oE59DkGvHpEtVAOa",
+          "tag": "KMXIGcyaZ41nteugChmNwg",
+          "ciphertext": "qg"
+        }
+      }
+    }
+  ]
+}

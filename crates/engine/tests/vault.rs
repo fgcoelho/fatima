@@ -169,3 +169,41 @@ fn vault_rejects_duplicate_global_secret_keys() {
 
     assert!(error.to_string().contains("already exists"));
 }
+
+#[test]
+fn v1_fixture_opens_with_its_password() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v1");
+    std::fs::create_dir_all(temp.path().join(".fatima")).unwrap();
+    std::fs::copy(
+        fixture.join(".fatima/vault.json"),
+        temp.path().join(".fatima/vault.json"),
+    )
+    .unwrap();
+    let user_key = std::fs::read_to_string(fixture.join("user-key.txt")).unwrap();
+    let options = VaultOptions {
+        cwd: Some(temp.path().display().to_string()),
+        store_path: None,
+    };
+
+    let vault = FatimaVault::unlock_with_password("fixture-password", Some(options.clone())).unwrap();
+    let snapshot = vault.snapshot().unwrap();
+    let value = |key: &str, environment: &str| {
+        snapshot
+            .secrets
+            .iter()
+            .find(|secret| secret.key == key)
+            .unwrap()
+            .values[environment]
+            .clone()
+    };
+    assert_eq!(value("DATABASE_URL", "development"), "postgres://dev");
+    assert_eq!(value("DATABASE_URL", "production"), "postgres://prod");
+    assert_eq!(value("API_TOKEN", "development"), "dev-token");
+
+    let keyed = FatimaVault::authenticate_with_user_key(user_key.trim(), Some(options)).unwrap();
+    let secrets = keyed.get_secrets(Some("development")).unwrap();
+    assert_eq!(secrets["DATABASE_URL"], "postgres://dev");
+    assert_eq!(secrets["API_TOKEN"], "dev-token");
+    assert_eq!(secrets["DEBUG"], "1");
+}
